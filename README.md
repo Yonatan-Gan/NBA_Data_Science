@@ -96,3 +96,12 @@ python visualizations/team_scoring_trend.py
 | `figures/fig2_points_sanity.png` | Points per game per season (violin plots) — confirms no impossible values |
 | `figures/playoff_risers_decliners.png` | Dumbbell plot: top 10 playoff risers vs top 10 decliners (change in scoring) |
 | `figures/team_scoring_trend.png` | Line chart: average team score per game by season (2003–2022) |
+| `figures/nba_age_distribution.pdf` | NBA player age distribution by era ([view PDF](figures/nba_age_distribution.pdf)) |
+
+### NBA Team Scoring Over Time (2003–2022)
+
+![Team scoring trend](figures/team_scoring_trend.png)
+
+### NBA Player Age Distribution
+
+![Age distribution](figures/fig1_age_sanity.png)
