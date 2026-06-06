@@ -104,4 +104,4 @@ python visualizations/team_scoring_trend.py
 
 ### NBA Player Age Distribution
 
-![Age distribution](figures/fig1_age_sanity.png)
+![Age distribution](figures/nba_age_distribution.png)
