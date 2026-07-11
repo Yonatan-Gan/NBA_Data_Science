@@ -13,7 +13,7 @@ import matplotlib.patches as mpatches
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
 from scipy import stats
-from scipy.stats import zscore, gaussian_kde
+from scipy.stats import zscore, gaussian_kde, mannwhitneyu, chi2_contingency
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 
@@ -48,6 +48,11 @@ print("Loading data and building composite score...")
 q3  = pd.read_csv(os.path.join(KAGGLE, "q3_player_split_v2.csv"))
 adv = pd.read_csv(os.path.join(KAGGLE, "q3_advanced_split.csv"))
 bio = pd.read_csv(os.path.join(KAGGLE, "player_bio_enhanced.csv"))
+
+EAST_TEAMS = {"ATL","BOS","BRK","CHA","CHO","CHI","CLE","DET","IND","MIA","MIL",
+              "NJN","NYK","ORL","PHI","TOR","WAS"}
+WEST_TEAMS = {"DAL","DEN","GSW","HOU","LAC","LAL","MEM","MIN","NOP","NOH","NOK",
+              "OKC","PHO","POR","SAC","SAS","UTA","SEA","VAN"}
 
 # Keep only player-seasons with both regular season and playoff data,
 # and enough games to make the stats reliable
@@ -110,6 +115,21 @@ df["approx_age"] = df["season_start"] + 1 - df["birth_year"]
 df["exp_bucket"] = pd.cut(
     df["season_exp"].clip(0, 22), bins=[-1, 3, 7, 12, 25],
     labels=["Rookie\n(0-3 yrs)", "Young\n(4-7)", "Prime\n(8-12)", "Veteran\n(13+)"]
+)
+
+# Conference (team from advanced split)
+adv_team = adv[["Player","season_start","team"]].drop_duplicates()
+df = df.merge(adv_team, on=["Player","season_start"], how="left")
+df["conference"] = df["team"].map(
+    lambda t: "East" if t in EAST_TEAMS else ("West" if t in WEST_TEAMS else None)
+)
+
+# Finer experience brackets for cross-analysis
+EXP_BINS   = [0, 3, 6, 10, 15, 26]
+EXP_LABELS = ["1-3 yrs", "4-6 yrs", "7-10 yrs", "11-15 yrs", "16+ yrs"]
+df["exp_bracket"] = pd.cut(
+    df["season_exp"].clip(0, 25).fillna(-1).replace(-1, np.nan),
+    bins=EXP_BINS, labels=EXP_LABELS
 )
 
 n_total = len(df)
@@ -661,6 +681,157 @@ plt.close()
 
 
 # ============================================================
+# FIG 10 - Experience brackets + year-over-year + conference
+# ============================================================
+print("Fig 10...")
+
+# --- Data prep ---
+exp_valid = df.dropna(subset=["exp_bracket", "TENDENCY"]).copy()
+
+riser_by_exp, decl_by_exp, exp_ns_10 = [], [], []
+for e in EXP_LABELS:
+    sub = exp_valid[exp_valid["exp_bracket"] == e]["TENDENCY"]
+    n   = len(sub)
+    riser_by_exp.append(100 * (sub == "Riser").sum()   / n if n > 0 else 0)
+    decl_by_exp.append( 100 * (sub == "Decliner").sum()/ n if n > 0 else 0)
+    exp_ns_10.append(n)
+
+# Year-over-year tendency transition
+player_tend_seq = df.sort_values(["Player","season_start"]).groupby("Player")["TENDENCY"].apply(list)
+transitions = []
+for tends in player_tend_seq:
+    for i in range(len(tends) - 1):
+        transitions.append((tends[i], tends[i + 1]))
+trans_df = pd.DataFrame(transitions, columns=["this_year", "next_year"])
+trans_pct = (trans_df.groupby(["this_year","next_year"]).size()
+                     .unstack(fill_value=0)
+                     .div(trans_df.groupby("this_year").size(), axis=0) * 100)
+for t in ORDER:
+    if t not in trans_pct.columns: trans_pct[t] = 0.0
+trans_pct = trans_pct[ORDER].reindex(ORDER)
+
+# Conference breakdown
+conf_valid = df.dropna(subset=["conference"]).copy()
+_, p_conf, _, _ = chi2_contingency(
+    pd.crosstab(conf_valid["conference"], conf_valid["TENDENCY"])
+)
+exp_r   = df[df["TENDENCY"] == "Riser"]["season_exp"].dropna()
+exp_d   = df[df["TENDENCY"] == "Decliner"]["season_exp"].dropna()
+_, p_exp = mannwhitneyu(exp_r, exp_d)
+
+# --- Figure ---
+fig = plt.figure(figsize=(16, 11))
+gs  = fig.add_gridspec(2, 2, hspace=0.5, wspace=0.38)
+fig.suptitle("Experience, Conference, and Year-over-Year Patterns",
+             fontsize=14, fontweight="bold", y=1.01)
+
+# Top left: experience bracket
+ax_exp = fig.add_subplot(gs[0, :])   # spans both columns
+w10 = 0.35
+xe10 = np.arange(len(EXP_LABELS))
+bars_r = ax_exp.bar(xe10 - w10/2, riser_by_exp,  w10, color=RISER_COL, alpha=0.85,
+                    edgecolor="white", label="Riser %")
+bars_d = ax_exp.bar(xe10 + w10/2, decl_by_exp,   w10, color=DECL_COL,  alpha=0.85,
+                    edgecolor="white", label="Decliner %")
+
+# Overall baselines
+base_r = (df["TENDENCY"] == "Riser").mean() * 100
+base_d = (df["TENDENCY"] == "Decliner").mean() * 100
+ax_exp.axhline(base_r, color=RISER_COL,  linewidth=1.3, linestyle="--", alpha=0.55)
+ax_exp.axhline(base_d, color=DECL_COL,   linewidth=1.3, linestyle="--", alpha=0.55)
+ax_exp.text(len(EXP_LABELS) - 0.48, base_r + 0.5, f"Overall avg {base_r:.0f}%",
+            color=RISER_COL, fontsize=8, alpha=0.8)
+ax_exp.text(len(EXP_LABELS) - 0.48, base_d - 1.5, f"Overall avg {base_d:.0f}%",
+            color=DECL_COL,  fontsize=8, alpha=0.8)
+
+for i, (r, d, n) in enumerate(zip(riser_by_exp, decl_by_exp, exp_ns_10)):
+    ax_exp.text(i - w10/2, r + 0.6, f"{r:.0f}%", ha="center", fontsize=9,
+                color=RISER_COL, fontweight="bold")
+    ax_exp.text(i + w10/2, d + 0.6, f"{d:.0f}%", ha="center", fontsize=9,
+                color=DECL_COL,  fontweight="bold")
+    ax_exp.text(i, -3.5, f"n={n:,}", ha="center", fontsize=8, color="gray")
+
+ax_exp.set_xticks(xe10)
+ax_exp.set_xticklabels(EXP_LABELS, fontsize=11)
+ax_exp.set_ylim(-6, 45)
+ax_exp.set_ylabel("% of player-seasons", fontsize=11)
+ax_exp.set_title(
+    f"How Experience Changes Your Odds of Rising or Declining in the Playoffs\n"
+    f"(statistical test Riser vs Decliner experience: p = {p_exp:.4f})",
+    fontsize=12, fontweight="bold"
+)
+ax_exp.legend(frameon=False, fontsize=10, loc="upper left")
+
+# Add a shaded annotation for the key crossover
+ax_exp.annotate("Young players decline\nmuch more than they rise",
+                xy=(0.1, 33), xytext=(0.6, 41),
+                arrowprops=dict(arrowstyle="->", color=DECL_COL, lw=1.4),
+                fontsize=9, color=DECL_COL)
+ax_exp.annotate("Veterans rise more\nthan they decline",
+                xy=(4, 20.7), xytext=(3.3, 38),
+                arrowprops=dict(arrowstyle="->", color=RISER_COL, lw=1.4),
+                fontsize=9, color=RISER_COL)
+
+# Bottom left: year-over-year heatmap
+ax_yoy = fig.add_subplot(gs[1, 0])
+cmap = plt.cm.RdYlGn
+im = ax_yoy.imshow(trans_pct.values, cmap=cmap, aspect="auto", vmin=10, vmax=30)
+ax_yoy.set_xticks(range(3)); ax_yoy.set_xticklabels(ORDER, fontsize=10)
+ax_yoy.set_yticks(range(3)); ax_yoy.set_yticklabels(ORDER, fontsize=10)
+ax_yoy.set_xlabel("Tendency NEXT year", fontsize=10)
+ax_yoy.set_ylabel("Tendency THIS year", fontsize=10)
+ax_yoy.set_title("Year-over-Year Tendency Consistency\n"
+                 "(Does last year's label predict this year?)", fontsize=11, fontweight="bold")
+for i in range(3):
+    for j in range(3):
+        val = trans_pct.values[i, j]
+        ax_yoy.text(j, i, f"{val:.0f}%",
+                    ha="center", va="center", fontsize=13, fontweight="bold",
+                    color="white" if (val < 14 or val > 26) else "black")
+plt.colorbar(im, ax=ax_yoy, shrink=0.8, label="% of player-seasons")
+
+# Bottom right: conference breakdown
+ax_conf = fig.add_subplot(gs[1, 1])
+conf_order = ["East", "West"]
+conf_pct_data = {}
+for conf in conf_order:
+    sub = conf_valid[conf_valid["conference"] == conf]["TENDENCY"]
+    conf_pct_data[conf] = {t: (sub == t).mean() * 100 for t in ORDER}
+
+bottoms = np.zeros(2)
+for tend in ORDER:
+    vals = [conf_pct_data[c][tend] for c in conf_order]
+    ax_conf.bar([0, 1], vals, bottom=bottoms, color=PAL[tend],
+                edgecolor="white", linewidth=0.8, alpha=0.9, label=tend)
+    for xi, (v, b) in enumerate(zip(vals, bottoms)):
+        if v > 7:
+            ax_conf.text(xi, b + v / 2, f"{v:.0f}%",
+                         ha="center", va="center", fontsize=12,
+                         color="white", fontweight="bold")
+    bottoms += np.array(vals)
+
+n_east = (conf_valid["conference"] == "East").sum()
+n_west = (conf_valid["conference"] == "West").sum()
+ax_conf.text(0, 103, f"n={n_east:,}", ha="center", fontsize=9, color="gray")
+ax_conf.text(1, 103, f"n={n_west:,}", ha="center", fontsize=9, color="gray")
+ax_conf.set_xticks([0, 1])
+ax_conf.set_xticklabels(["Eastern Conference", "Western Conference"], fontsize=11)
+ax_conf.set_ylim(0, 110)
+ax_conf.set_ylabel("% of player-seasons", fontsize=11)
+ax_conf.set_title(
+    f"East vs. West Conference\n(p = {p_conf:.2f} -- small difference, not conclusive)",
+    fontsize=11, fontweight="bold"
+)
+patches = [mpatches.Patch(color=PAL[t], label=t) for t in ORDER]
+ax_conf.legend(handles=patches, frameon=False, fontsize=9, loc="lower center",
+               bbox_to_anchor=(0.5, -0.18), ncol=3)
+
+p10 = os.path.join(FIG, "q3_fig10_experience_conference.png")
+fig.savefig(p10, dpi=150, bbox_inches="tight")
+plt.close()
+
+
+# ============================================================
 # SUMMARY STATS for PDF
 # ============================================================
 mean_delta_r   = df[df["TENDENCY"] == "Riser"]["DELTA_PTS"].mean()
@@ -1034,8 +1205,62 @@ story.append(takeaway(
     "of playoff experience tend to handle it better. It is what you have been through, "
     "not how old you are, that matters."))
 
-# --- 12. Conclusions ---
-story.append(Paragraph("12. Conclusions", H2))
+# --- 12. Experience brackets, year-over-year, conference ---
+story.append(Paragraph("12. A Closer Look at Experience and Conference", H2))
+story.append(Paragraph(
+    "We dug deeper into three additional angles: exactly how experience level (not just "
+    "age) changes the odds, whether a player's tendency from last year predicts this year, "
+    "and whether Eastern or Western Conference players behave differently.",
+    BODY))
+story.append(embed(p10, width=6.6*inch))
+story.append(Paragraph(
+    "Figure 10. Top: Riser rate (green) and Decliner rate (red) broken out by years of "
+    "experience in the NBA. Dashed lines show the overall average rates for reference. "
+    "Bottom left: a grid showing how likely a player is to repeat their previous playoff "
+    "tendency the next year. Bottom right: East vs. West conference breakdown.",
+    CAPTION))
+
+story.append(Paragraph("<b>Experience brackets:</b>", BODY))
+story.append(Paragraph(
+    f"Players with only 1-3 years in the league decline in the playoffs at an unusually "
+    f"high rate ({decl_by_exp[0]:.0f}% Decliners vs {riser_by_exp[0]:.0f}% Risers). "
+    "They are simply not used to the intensity yet. As players accumulate experience, "
+    "this gap gradually closes. By year 11 and beyond, the rates are nearly equal. "
+    f"By 16+ years, the pattern flips: {riser_by_exp[-1]:.0f}% of very experienced players "
+    f"rise vs only {decl_by_exp[-1]:.0f}% who decline. "
+    f"(Statistical test: p = {p_exp:.4f} -- highly significant.)",
+    BODY))
+
+story.append(Paragraph("<b>Year-over-year consistency:</b>", BODY))
+story.append(Paragraph(
+    "The bottom-left grid shows transition probabilities. If a player was a Decliner "
+    f"one year, they have a {trans_pct.loc['Decliner','Decliner']:.0f}% chance of declining "
+    f"again the next year -- slightly higher than the baseline rate of {base_d:.0f}%. "
+    f"Past Risers repeat at {trans_pct.loc['Riser','Riser']:.0f}%, close to the baseline. "
+    "This tells us that the Decliner label is slightly stickier than the Riser label -- "
+    "a player who struggles in the playoffs is somewhat more likely to struggle again. "
+    "But the effect is moderate; playoff tendency is not fully set in stone.",
+    BODY))
+
+story.append(Paragraph("<b>East vs. West Conference:</b>", BODY))
+story.append(Paragraph(
+    f"Western Conference players rise at {conf_pct_data['West']['Riser']:.0f}% vs "
+    f"{conf_pct_data['East']['Riser']:.0f}% for Eastern Conference players. "
+    f"This small difference is not statistically significant (p = {p_conf:.2f}), "
+    "so we cannot draw a firm conclusion. One possible explanation is that the West "
+    "has historically been a tougher conference, meaning West players face higher-quality "
+    "opponents all regular season and may be better conditioned to elite-level play. "
+    "But the data does not confirm this strongly.",
+    BODY))
+story.append(takeaway(
+    f"Experience matters more than anything else in this analysis. Young players (1-3 yrs) "
+    f"decline at {decl_by_exp[0]:.0f}% -- nearly twice their Riser rate. Veterans (16+ yrs) "
+    f"flip that script, rising at {riser_by_exp[-1]:.0f}% vs declining at {decl_by_exp[-1]:.0f}%. "
+    "Past playoff struggles repeat slightly more often than past successes. Conference makes "
+    "very little difference."))
+
+# --- 13. Conclusions ---
+story.append(Paragraph("13. Conclusions", H2))
 conclusions = [
     f"<b>The playoffs are genuinely harder.</b> When looking at composite performance "
     f"(not just scoring), {n_d:,} players declined vs. {n_r:,} who rose. "
@@ -1059,8 +1284,17 @@ conclusions = [
     f"<b>Playoff tendency is partially predictable</b> from regular-season stats "
     f"(AUC = {cv_auc.mean():.2f}). Efficiency metrics predict it better than scoring volume.",
 
-    "<b>Age does not matter. Experience does.</b> Veterans show a smaller gap between "
-    "their Riser and Decliner rates than rookies, but the effect is modest.",
+    "<b>Age does not matter. Experience does -- and it matters a lot.</b> "
+    f"Players with 1-3 years in the league decline at {decl_by_exp[0]:.0f}% -- "
+    f"nearly twice their Riser rate. By 16+ years, that inverts: {riser_by_exp[-1]:.0f}% "
+    f"rise vs {decl_by_exp[-1]:.0f}% decline.",
+
+    "<b>Past playoff struggles are slightly sticky.</b> Players who declined last year "
+    "are somewhat more likely to decline again. Rising is less persistent, but neither "
+    "tendency fully determines the future.",
+
+    "<b>Conference (East vs. West) makes little difference.</b> There is a small trend "
+    "toward West players rising more, but it is not statistically significant.",
 ]
 for i, c in enumerate(conclusions, 1):
     story.append(Paragraph(f"{i}. {c}", STAT))
@@ -1087,5 +1321,6 @@ for label, path in [
     ("Fig 7 - Feature importance",p7),
     ("Fig 8 - Delta by tier",     p8),
     ("Fig 9 - Age/experience",    p9),
+    ("Fig 10 - Experience brackets + conference", p10),
 ]:
     print(f"  {label}: {os.path.basename(path)}")
