@@ -202,7 +202,7 @@ ax.annotate(
 
 ax.set_xlabel(
     "Composite playoff performance score  "
-    "(combines scoring, shooting efficiency, assists, turnovers  --  "
+    "(combines scoring, shooting efficiency, assists, turnovers  -  "
     "positive = improved in playoffs, negative = declined)",
     fontsize=9.5)
 ax.set_ylabel("Density", fontsize=11)
@@ -284,34 +284,40 @@ stat_info = [
 
 fig, axes = plt.subplots(1, 3, figsize=(11, 5.5))
 fig.suptitle("How Risers and Decliners Differ Across Three Key Stats\n"
-             "(Playoffs minus Regular Season -- positive means improvement)",
+             "(Playoffs minus Regular Season - positive means improvement)",
              fontsize=13, fontweight="bold", y=1.03)
 
 for ax, (col, label, unit) in zip(axes, stat_info):
-    vals_all = [df[df["TENDENCY"]==t][col].dropna().mean() for t in ["Riser","Decliner"]]
-    yrange   = max(abs(v) for v in vals_all) if vals_all else 1
-    gap      = yrange * 0.08          # minimum clearance from zero line
+    means = {t: df[df["TENDENCY"]==t][col].dropna().mean() for t in ["Riser","Decliner"]}
+    pos_max = max(v for v in means.values() if v >= 0) if any(v >= 0 for v in means.values()) else 0
+    neg_min = min(v for v in means.values() if v <  0) if any(v <  0 for v in means.values()) else 0
+    total_span = pos_max - neg_min if (pos_max - neg_min) > 0 else 1
+    # 30% headroom above the tallest positive bar, 30% below the deepest negative bar
+    ylim_top = pos_max + total_span * 0.30
+    ylim_bot = neg_min - total_span * 0.30
+
     for xi, tend in enumerate(["Riser", "Decliner"]):
-        sub   = df[df["TENDENCY"] == tend][col].dropna()
-        mean  = sub.mean()
+        mean  = means[tend]
         color = PAL[tend]
         ax.bar([xi], [mean], color=color, alpha=0.85, edgecolor="white", width=0.55)
         sign = "+" if mean > 0 else ""
+        offset = total_span * 0.06      # label sits 6% of range away from bar tip
         if mean >= 0:
-            ax.text(xi, mean + gap, f"{sign}{mean:.2f}",
+            ax.text(xi, mean + offset, f"{sign}{mean:.2f}",
                     ha="center", va="bottom", fontsize=10.5, fontweight="bold", color=color)
         else:
-            ax.text(xi, mean - gap, f"{sign}{mean:.2f}",
+            ax.text(xi, mean - offset, f"{sign}{mean:.2f}",
                     ha="center", va="top", fontsize=10.5, fontweight="bold", color=color)
 
     ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.4)
-    ax.set_title(label, fontsize=10.5, fontweight="bold")
+    ax.set_ylim(ylim_bot, ylim_top)
+    ax.set_title(label, fontsize=10.5, fontweight="bold", pad=10)
     ax.set_ylabel(f"Change ({unit})", fontsize=9)
     ax.set_xticks([0, 1])
     ax.set_xticklabels(["Riser", "Decliner"], fontsize=10)
     ax.tick_params(bottom=False)
 
-fig.tight_layout()
+fig.tight_layout(pad=1.8)
 p3 = os.path.join(FIG, "q3_fig3_component_deltas.png")
 fig.savefig(p3, dpi=150, bbox_inches="tight")
 plt.close()
@@ -327,7 +333,7 @@ fig, axes = plt.subplots(1, 3, figsize=(14, 5.5), sharey=True, sharex=True)
 fig.suptitle(
     "Regular Season Scoring vs Playoff Scoring\n"
     "Each dot is one player-season. Above the diagonal = scored more in playoffs.\n"
-    "Colors reflect a 4-stat composite score (shooting, assists, turnovers, scoring)  --  "
+    "Colors reflect a 4-stat composite score (shooting, assists, turnovers, scoring)  -  "
     "a player can score slightly less but still be a Riser overall.",
     fontsize=11.5, fontweight="bold", y=1.05)
 
@@ -477,7 +483,7 @@ ax.set_xlabel("Importance score: how much this regular-season stat helped the mo
               fontsize=9.5)
 ax.set_title(
     f"Can We Predict a Playoff Riser Before the Season Starts?\n"
-    f"We gave a machine learning model only each player's regular-season stats -- "
+    f"We gave a machine learning model only each player's regular-season stats - "
     f"nothing from the playoffs.\n"
     f"It learned which stats best predict whether that player would rise or decline. "
     f"Longer bar = more useful.\n"
@@ -885,12 +891,12 @@ story.append(Paragraph(
     f"Decliners spread out more widely (spread = {d_comp_std:.2f}): some barely dip below "
     "the threshold, while others collapse dramatically. "
     f"The worst Decliners reach scores as low as {d_comp.min():.1f}, while the best Risers "
-    f"reach only {r_comp.max():.1f} -- meaning the floor for decline is further from neutral "
+    f"reach only {r_comp.max():.1f} - meaning the floor for decline is further from neutral "
     "than the ceiling for improvement.",
     BODY))
 story.append(takeaway(
     f"When players rise in the playoffs, they tend to do so consistently and by a similar "
-    "margin. When they decline, the story varies widely -- some barely slip, others collapse. "
+    "margin. When they decline, the story varies widely - some barely slip, others collapse. "
     "Declining is less predictable than rising."))
 
 # --- 4. Who rises by position/role ---
@@ -964,8 +970,9 @@ story.append(Paragraph(
 
 # Compute for inline stats
 decl_above_diag = df[(df["TENDENCY"]=="Decliner") & (df["POF_PTS"] > df["REG_PTS"])]
-decl_above_names = ", ".join(
-    decl_above_diag.sort_values("DELTA_PTS", ascending=False)["Player"].head(3).tolist())
+decl_above_top3 = (decl_above_diag.sort_values("DELTA_PTS", ascending=False)["Player"]
+                   .head(3).tolist())
+decl_above_bold = ", ".join(f"<b>{n}</b>" for n in decl_above_top3)
 rise_below_diag = df[(df["TENDENCY"]=="Riser") & (df["POF_PTS"] < df["REG_PTS"])]
 pct_rise_below = 100 * len(rise_below_diag) / (df["TENDENCY"]=="Riser").sum()
 
@@ -973,15 +980,20 @@ story.append(Paragraph(
     f"Among the {(df['TENDENCY']=='Riser').sum():,} Riser seasons, "
     f"{len(rise_below_diag)} ({pct_rise_below:.0f}%) actually scored fewer points in the playoffs. "
     "These players still earned a Riser classification because they shot more efficiently, "
-    "created more for teammates, or protected the ball -- the composite score picks this up "
+    "created more for teammates, or protected the ball - the composite score picks this up "
     "where raw scoring does not. "
     f"In contrast, of the {(df['TENDENCY']=='Decliner').sum():,} Decliner seasons, "
-    f"only {len(decl_above_diag)} (1%) scored more in the playoffs, "
-    f"and all of them sit right at the decliner threshold: {decl_above_names}, and a few others. "
-    "Declining is nearly always accompanied by a scoring drop.",
+    f"only {len(decl_above_diag)} (1%) scored more in the playoffs. "
+    f"That tiny group includes {decl_above_bold}, and a few others. "
+    "What do they have in common? They are all primarily <b>team-first players</b> - "
+    "facilitators and defenders who do not rely on scoring as their main contribution. "
+    "Their slight scoring uptick in the playoffs was not enough to compensate for drops "
+    "in other areas like shooting efficiency or assists, which is exactly what the "
+    "composite score is designed to capture. "
+    "For almost every other Decliner, the scoring drop tells the full story.",
     BODY))
 story.append(takeaway(
-    "A player can rise in the playoffs even while scoring less -- improved efficiency "
+    "A player can rise in the playoffs even while scoring less - improved efficiency "
     "and playmaking can outweigh a small point drop. But Decliners almost always score "
     "less too. Rising without scoring more is possible; declining without scoring less "
     "almost never happens."))
@@ -1161,14 +1173,14 @@ story.append(Paragraph(
 story.append(Paragraph(
     "We also checked year-over-year consistency: if a player was a Decliner one year, "
     f"they had a {trans_pct.loc['Decliner','Decliner']:.0f}% chance of declining again "
-    f"the following year -- slightly above the baseline rate of {base_d:.0f}%. "
+    f"the following year - slightly above the baseline rate of {base_d:.0f}%. "
     f"Past Risers repeated at {trans_pct.loc['Riser','Riser']:.0f}%, close to baseline. "
     "The Decliner label is slightly stickier than the Riser label, but neither is fixed: "
     "playoff tendency is not fully determined year to year.",
     BODY))
 
 story.append(takeaway(
-    f"Experience matters. Young players (1-3 yrs) decline at {decl_by_exp[0]:.0f}% -- "
+    f"Experience matters. Young players (1-3 yrs) decline at {decl_by_exp[0]:.0f}% - "
     f"nearly double their Riser rate. Veterans (16+ yrs) flip that script: "
     f"{riser_by_exp[-1]:.0f}% rise vs only {decl_by_exp[-1]:.0f}% who decline. "
     "It is what you have been through, not how old you are, that makes the difference."))
