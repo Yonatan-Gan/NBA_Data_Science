@@ -141,49 +141,74 @@ print(f"  {n_total:,} player-seasons  |  Risers {n_r} ({100*n_r/n_total:.0f}%)  
 
 
 # ============================================================
-# FIG 1 - Full distribution of all composite scores (shaded zones)
+# FIG 1 - Composite score shape comparison: Risers vs Decliners
 # ============================================================
 print("Fig 1...")
+
+r_comp = df[df["TENDENCY"] == "Riser"]["COMPOSITE"].dropna()
+d_comp = df[df["TENDENCY"] == "Decliner"]["COMPOSITE"].dropna()
+
+# KDE for each group
+kde_r = gaussian_kde(r_comp, bw_method=0.30)
+kde_d = gaussian_kde(d_comp, bw_method=0.30)
+
+x_full = np.linspace(-3.8, 3.0, 800)
+xs_r   = np.linspace(0.5, r_comp.max() + 0.15, 500)
+xs_d   = np.linspace(d_comp.min() - 0.15, -0.5, 500)
+
+# Stats for annotations and PDF
+r_comp_std = r_comp.std()
+d_comp_std = d_comp.std()
+r_comp_p95 = np.percentile(r_comp, 95)
+d_comp_p05 = np.percentile(d_comp,  5)
+
 fig, ax = plt.subplots(figsize=(11, 5.5))
-fig.suptitle("How Players Perform Differently in the Playoffs",
-             fontsize=15, fontweight="bold", y=1.01)
+fig.suptitle("How Extreme Is Each Group? Comparing the Shape of Riser vs Decliner Scores",
+             fontsize=13, fontweight="bold", y=1.01)
 
-all_vals = df["COMPOSITE"].dropna().values
-kde_all  = gaussian_kde(all_vals, bw_method=0.25)
-xs       = np.linspace(-3.6, 3.0, 600)
-ys       = kde_all(xs)
+# Shade + outline for each group (plotted only in their own zone)
+ax.fill_between(xs_r, kde_r(xs_r), alpha=0.32, color=RISER_COL)
+ax.plot(xs_r, kde_r(xs_r), color=RISER_COL, linewidth=2.4,
+        label=f"Risers  (n={n_r:,})")
 
-# Shade each zone under the single curve
-ax.fill_between(xs, ys, where=(xs < -0.5),             color=DECL_COL,    alpha=0.30)
-ax.fill_between(xs, ys, where=(xs >= -0.5) & (xs < 0.5), color=NEUTRAL_COL, alpha=0.18)
-ax.fill_between(xs, ys, where=(xs >= 0.5),              color=RISER_COL,   alpha=0.30)
-ax.plot(xs, ys, color="#2c3e50", linewidth=2.2)
+ax.fill_between(xs_d, kde_d(xs_d), alpha=0.32, color=DECL_COL)
+ax.plot(xs_d, kde_d(xs_d), color=DECL_COL, linewidth=2.4,
+        label=f"Decliners  (n={n_d:,})")
 
-# Zone labels positioned at the centre of each shaded region
-ymax = ys.max()
-n_r = (df["TENDENCY"] == "Riser").sum()
-n_n = (df["TENDENCY"] == "Neutral").sum()
-n_d = (df["TENDENCY"] == "Decliner").sum()
+# Neutral gap shading
+ax.axvspan(-0.5, 0.5, alpha=0.07, color=NEUTRAL_COL, zorder=0)
+ax.text(0, ax.get_ylim()[1] * 0.05 if ax.get_ylim()[1] > 0 else 0.02,
+        "Neutral zone", ha="center", fontsize=8.5,
+        color=NEUTRAL_COL, style="italic")
 
-ax.text(-1.8, ymax * 0.52, f"Decliners\n18%  (n={n_d:,})",
-        ha="center", fontsize=10, color=DECL_COL, fontweight="bold")
-ax.text( 0.0, ymax * 0.65, f"Neutral\n63%  (n={n_n:,})",
-        ha="center", fontsize=10, color="#555", fontweight="bold")
-ax.text( 1.6, ymax * 0.52, f"Risers\n18%  (n={n_r:,})",
-        ha="center", fontsize=10, color=RISER_COL, fontweight="bold")
+# Threshold lines
+ax.axvline( 0.5, color=RISER_COL, linewidth=1.0, linestyle="--", alpha=0.5)
+ax.axvline(-0.5, color=DECL_COL,  linewidth=1.0, linestyle="--", alpha=0.5)
 
-# Thin boundary lines between zones — no labels
-ax.axvline(-0.5, color=DECL_COL,  linewidth=1.0, linestyle="--", alpha=0.45)
-ax.axvline( 0.5, color=RISER_COL, linewidth=1.0, linestyle="--", alpha=0.45)
+# Annotate the spread difference
+ymax = max(kde_r(xs_r).max(), kde_d(xs_d).max())
+ax.annotate(
+    f"Risers: tighter cluster\n(spread = {r_comp_std:.2f})",
+    xy=(r_comp.mean(), kde_r([r_comp.mean()])[0]),
+    xytext=(1.9, ymax * 0.82),
+    arrowprops=dict(arrowstyle="->", color=RISER_COL, lw=1.3),
+    fontsize=9.5, color=RISER_COL, fontweight="bold")
+ax.annotate(
+    f"Decliners: wider spread\n(spread = {d_comp_std:.2f})",
+    xy=(d_comp.mean(), kde_d([d_comp.mean()])[0]),
+    xytext=(-3.4, ymax * 0.82),
+    arrowprops=dict(arrowstyle="->", color=DECL_COL, lw=1.3),
+    fontsize=9.5, color=DECL_COL, fontweight="bold")
 
 ax.set_xlabel(
-    "Overall playoff performance score  (combines scoring, shooting efficiency, and assists -- "
+    "Composite playoff performance score  "
+    "(combines scoring, shooting efficiency, assists, turnovers  --  "
     "positive = improved in playoffs, negative = declined)",
-    fontsize=10)
-ax.set_ylabel("Share of player-seasons", fontsize=11)
-ax.set_xlim(-3.6, 3.0)
-ax.set_ylim(0, ymax * 1.18)
+    fontsize=9.5)
+ax.set_ylabel("Density", fontsize=11)
+ax.set_xlim(-3.8, 3.0)
 ax.tick_params(left=False, labelleft=False)
+ax.legend(frameon=False, fontsize=11, loc="upper right")
 
 fig.tight_layout()
 p1 = os.path.join(FIG, "q3_fig1_scoring_delta.png")
@@ -263,18 +288,20 @@ fig.suptitle("How Risers and Decliners Differ Across Three Key Stats\n"
              fontsize=13, fontweight="bold", y=1.03)
 
 for ax, (col, label, unit) in zip(axes, stat_info):
+    vals_all = [df[df["TENDENCY"]==t][col].dropna().mean() for t in ["Riser","Decliner"]]
+    yrange   = max(abs(v) for v in vals_all) if vals_all else 1
+    gap      = yrange * 0.08          # minimum clearance from zero line
     for xi, tend in enumerate(["Riser", "Decliner"]):
         sub   = df[df["TENDENCY"] == tend][col].dropna()
         mean  = sub.mean()
         color = PAL[tend]
         ax.bar([xi], [mean], color=color, alpha=0.85, edgecolor="white", width=0.55)
         sign = "+" if mean > 0 else ""
-        # Place label just inside the tip of the bar, clear of the x-axis
         if mean >= 0:
-            ax.text(xi, mean + 0.01, f"{sign}{mean:.2f}",
+            ax.text(xi, mean + gap, f"{sign}{mean:.2f}",
                     ha="center", va="bottom", fontsize=10.5, fontweight="bold", color=color)
         else:
-            ax.text(xi, mean - 0.01, f"{sign}{mean:.2f}",
+            ax.text(xi, mean - gap, f"{sign}{mean:.2f}",
                     ha="center", va="top", fontsize=10.5, fontweight="bold", color=color)
 
     ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.4)
@@ -369,66 +396,10 @@ plt.close()
 
 
 # ============================================================
-# FIG 6 - Validation: famous players + Finals depth
+# FIG 6 - Validation: avg playoff games by tendency
 # ============================================================
 print("Fig 6 (validation)...")
-famous_names = [
-    "LeBron James", "Tim Duncan", "Kawhi Leonard", "Dwyane Wade",
-    "Dirk Nowitzki", "Tony Parker", "Andre Iguodala", "Draymond Green",
-    "James Harden", "Joel Embiid", "Joe Johnson",
-    "Chris Paul", "Kobe Bryant", "Stephen Curry",
-]
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6.5))
-fig.suptitle("Does Our Score Match Reality? Validation",
-             fontsize=14, fontweight="bold", y=1.01)
-
-# Left: famous players colored by their ACTUAL composite label from our data
-names_f, scores_f, labels_f = [], [], []
-for name in famous_names:
-    sub = df[df["Player"] == name]
-    if len(sub) > 0:
-        avg   = sub["COMPOSITE"].mean()
-        label = "Riser" if avg > 0.5 else ("Decliner" if avg < -0.5 else "Neutral")
-        names_f.append(name)
-        scores_f.append(avg)
-        labels_f.append(label)
-
-sorted_idx = np.argsort(scores_f)
-names_s  = [names_f[i]  for i in sorted_idx]
-scores_s = [scores_f[i] for i in sorted_idx]
-labels_s = [labels_f[i] for i in sorted_idx]
-
-y = np.arange(len(names_s))
-for yi, (score, lbl) in enumerate(zip(scores_s, labels_s)):
-    color  = PAL[lbl]
-    ax1.barh(yi, score, color=color, alpha=0.82, edgecolor="white", height=0.65)
-    sign   = "+" if score >= 0 else ""
-    # For very short bars push the label further out so it clears the name tick
-    min_offset = 0.12
-    if score >= 0:
-        offset = max(score + 0.04, min_offset)
-        ax1.text(offset, yi, f"+{score:.2f}" if score >= 0 else f"{score:.2f}",
-                 va="center", ha="left", fontsize=9, color=color, fontweight="bold")
-    else:
-        offset = min(score - 0.04, -min_offset)
-        ax1.text(offset, yi, f"{score:.2f}",
-                 va="center", ha="right", fontsize=9, color=color, fontweight="bold")
-
-ax1.set_yticks(y)
-ax1.set_yticklabels(names_s, fontsize=10)
-ax1.axvline( 0.5, color=RISER_COL, linewidth=1,   linestyle=":", alpha=0.6)
-ax1.axvline(-0.5, color=DECL_COL,  linewidth=1,   linestyle=":", alpha=0.6)
-ax1.axvline( 0,   color="black",   linewidth=0.8,  linestyle="--", alpha=0.35)
-ax1.set_xlabel("Career average composite playoff score", fontsize=11)
-ax1.set_title(
-    "Famous players: what our score says about them\n"
-    "(color = our model's classification, dotted lines = thresholds)",
-    fontsize=10.5)
-patches_legend = [mpatches.Patch(color=PAL[t], label=t) for t in ORDER]
-ax1.legend(handles=patches_legend, frameon=False, fontsize=9, loc="lower right")
-
-# Right: average playoff games played by tendency -- clean, unambiguous validation
 avg_games = df.groupby("TENDENCY")["POF_G"].mean().reindex(ORDER)
 n_games   = df.groupby("TENDENCY")["POF_G"].count().reindex(ORDER)
 t_stat_g, p_val_g = stats.ttest_ind(
@@ -436,26 +407,27 @@ t_stat_g, p_val_g = stats.ttest_ind(
     df[df["TENDENCY"] == "Decliner"]["POF_G"].dropna()
 )
 
+fig, ax = plt.subplots(figsize=(8, 5.5))
+fig.suptitle("Do Risers Actually Go Further in the Playoffs?",
+             fontsize=13, fontweight="bold", y=1.01)
+
 for xi, tend in enumerate(ORDER):
     mean = avg_games[tend]
-    ax2.bar(xi, mean, color=PAL[tend], alpha=0.85, edgecolor="white", width=0.55)
-    ax2.text(xi, mean + 0.1, f"{mean:.1f}", ha="center", va="bottom",
-             fontsize=13, fontweight="bold", color=PAL[tend])
-    ax2.text(xi, 0.25, f"n={n_games[tend]:,}", ha="center", va="bottom",
-             fontsize=8.5, color="white", fontweight="bold")
+    ax.bar(xi, mean, color=PAL[tend], alpha=0.85, edgecolor="white", width=0.55)
+    ax.text(xi, mean + 0.15, f"{mean:.1f}", ha="center", va="bottom",
+            fontsize=14, fontweight="bold", color=PAL[tend])
+    ax.text(xi, 0.28, f"n={n_games[tend]:,}", ha="center", va="bottom",
+            fontsize=9, color="white", fontweight="bold")
 
-ax2.set_xticks(range(len(ORDER)))
-ax2.set_xticklabels(ORDER, fontsize=12)
-ax2.set_ylabel("Average playoff games played per season", fontsize=11)
-ax2.set_title(
-    "Risers go deeper into the playoffs\n"
-    f"(Riser vs Decliner difference: p = {p_val_g:.4f})",
-    fontsize=11, fontweight="bold")
-ax2.set_ylim(0, avg_games.max() + 2)
-ax2.tick_params(bottom=False)
-ax2.text(len(ORDER)/2 - 0.5, avg_games.max() + 1.4,
-         "More games = team went further in the playoffs",
-         ha="center", fontsize=8.5, color="gray", style="italic")
+ax.set_xticks(range(len(ORDER)))
+ax.set_xticklabels(ORDER, fontsize=13)
+ax.set_ylabel("Average playoff games played per season", fontsize=11)
+ax.set_title(
+    "Average playoff games played per season, by tendency group\n"
+    "More games = team went further in the postseason",
+    fontsize=10.5)
+ax.set_ylim(0, avg_games.max() + 2.5)
+ax.tick_params(bottom=False)
 
 fig.tight_layout()
 p6 = os.path.join(FIG, "q3_fig6_validation.png")
@@ -606,7 +578,7 @@ ax1.set_xticks(x)
 ax1.set_xticklabels([f"{b}\n(n={n:,})" for b, n in zip(age_buckets, age_ns)], fontsize=9)
 ax1.set_ylim(0, 55); ax1.set_ylabel("% of player-seasons", fontsize=11)
 ax1.set_title("Riser vs. Decliner Rate by Age Group\n"
-              f"(age alone: p = {p_age:.2f} -- not significant)",
+              "(age alone is not a significant predictor)",
               fontsize=11, fontweight="bold")
 ax1.legend(frameon=False, fontsize=10)
 ax1.tick_params(bottom=False)
@@ -648,7 +620,7 @@ plt.close()
 
 
 # ============================================================
-# FIG 10 - Fine-grained experience brackets + year-over-year
+# FIG 10 - Fine-grained experience brackets
 # ============================================================
 print("Fig 10...")
 
@@ -663,7 +635,7 @@ for e in EXP_LABELS:
     decl_by_exp.append( 100 * (sub == "Decliner").sum()/ n if n > 0 else 0)
     exp_ns_10.append(n)
 
-# Year-over-year tendency transition
+# Stats needed for PDF text (year-over-year kept for body text even without the chart)
 player_tend_seq = df.sort_values(["Player","season_start"]).groupby("Player")["TENDENCY"].apply(list)
 transitions = []
 for tends in player_tend_seq:
@@ -677,7 +649,6 @@ for t in ORDER:
     if t not in trans_pct.columns: trans_pct[t] = 0.0
 trans_pct = trans_pct[ORDER].reindex(ORDER)
 
-# Stats needed for PDF text
 conf_valid = df.dropna(subset=["conference"]).copy()
 _, p_conf, _, _ = chi2_contingency(
     pd.crosstab(conf_valid["conference"], conf_valid["TENDENCY"])
@@ -691,14 +662,11 @@ exp_r    = df[df["TENDENCY"] == "Riser"]["season_exp"].dropna()
 exp_d    = df[df["TENDENCY"] == "Decliner"]["season_exp"].dropna()
 _, p_exp = mannwhitneyu(exp_r, exp_d)
 
-# --- Figure: 2 panels (experience brackets top, heatmap bottom) ---
-fig = plt.figure(figsize=(16, 10))
-gs  = fig.add_gridspec(2, 1, hspace=0.55)
-fig.suptitle("Experience and Year-over-Year Patterns",
+# --- Figure: single panel, experience brackets only ---
+fig, ax_exp = plt.subplots(figsize=(12, 5.5))
+fig.suptitle("Experience and Playoff Tendency",
              fontsize=14, fontweight="bold", y=1.01)
 
-# Top: experience bracket bars (full width)
-ax_exp = fig.add_subplot(gs[0])
 w10  = 0.35
 xe10 = np.arange(len(EXP_LABELS))
 ax_exp.bar(xe10 - w10/2, riser_by_exp, w10, color=RISER_COL, alpha=0.85,
@@ -718,8 +686,7 @@ ax_exp.set_xticklabels(EXP_LABELS, fontsize=12)
 ax_exp.set_ylim(-5, 42)
 ax_exp.set_ylabel("% of player-seasons", fontsize=11)
 ax_exp.set_title(
-    f"How Experience Changes Your Odds of Rising or Declining  "
-    f"(p = {p_exp:.4f})",
+    "How Experience Changes Your Odds of Rising or Declining",
     fontsize=12, fontweight="bold"
 )
 ax_exp.legend(frameon=False, fontsize=11, loc="upper left")
@@ -733,27 +700,7 @@ ax_exp.annotate("Veterans rise more\nthan they decline",
                 arrowprops=dict(arrowstyle="->", color=RISER_COL, lw=1.4),
                 fontsize=9.5, color=RISER_COL)
 
-# Bottom: year-over-year heatmap (centered)
-ax_yoy = fig.add_subplot(gs[1])
-cmap = plt.cm.RdYlGn
-im = ax_yoy.imshow(trans_pct.values, cmap=cmap, aspect="auto", vmin=10, vmax=30)
-ax_yoy.set_xticks(range(3)); ax_yoy.set_xticklabels(ORDER, fontsize=11)
-ax_yoy.set_yticks(range(3)); ax_yoy.set_yticklabels(ORDER, fontsize=11)
-ax_yoy.set_xlabel("Tendency NEXT season", fontsize=11)
-ax_yoy.set_ylabel("Tendency THIS season", fontsize=11)
-ax_yoy.set_title(
-    "Does This Season's Label Predict Next Season?\n"
-    "Each row shows: if a player had tendency X this year, what % had tendency Y next year",
-    fontsize=11, fontweight="bold")
-for i in range(3):
-    for j in range(3):
-        val = trans_pct.values[i, j]
-        ax_yoy.text(j, i, f"{val:.0f}%",
-                    ha="center", va="center", fontsize=14, fontweight="bold",
-                    color="white" if (val < 14 or val > 26) else "black")
-plt.colorbar(im, ax=ax_yoy, shrink=0.55, label="% of player-seasons",
-             orientation="vertical", pad=0.02)
-
+fig.tight_layout()
 p10 = os.path.join(FIG, "q3_fig10_experience_conference.png")
 fig.savefig(p10, dpi=150, bbox_inches="tight")
 plt.close()
@@ -917,24 +864,34 @@ story.append(Paragraph(
     "games and 5 playoff games, so one-game samples do not skew the results.",
     BODY))
 
-# --- 3. Scoring distribution ---
-story.append(Paragraph("3. The Scoring Gap Between Groups", H2))
+# --- 3. Distribution shape ---
+story.append(Paragraph("3. How Spread Out Are the Two Groups?", H2))
 story.append(Paragraph(
-    f"Even just looking at scoring, the gap is large. Risers average "
-    f"<b>{mean_delta_r:+.1f} points per game more</b> in the playoffs. "
-    f"Decliners average <b>{abs(mean_delta_d):.1f} points per game fewer.</b> "
-    "The chart below shows the full distribution of scoring changes for all three groups.",
+    f"On average, Risers improve by <b>{mean_delta_r:+.1f} points per game</b> in the playoffs "
+    f"while Decliners drop by <b>{abs(mean_delta_d):.1f} points per game</b>. "
+    "But the average alone misses something interesting: the two groups are not equally spread. "
+    "The chart below compares the full shape of their composite score distributions.",
     BODY))
 story.append(embed(p1))
 story.append(Paragraph(
-    "Figure 1. Each curve shows how many player-seasons had a given scoring change in the playoffs "
-    "compared to the regular season. The dashed line at zero means no change. "
-    "Curves to the right of zero scored more in the playoffs; curves to the left scored less.",
+    "Figure 1. Each curve shows the density of composite playoff performance scores "
+    "for Risers (green, right side) and Decliners (red, left side). "
+    "The shaded gap in the middle is the Neutral zone. "
+    "The spread (standard deviation) of each curve is annotated.",
     CAPTION))
+story.append(Paragraph(
+    f"The two curves have noticeably different shapes. Risers form a tighter, steeper peak "
+    f"(spread = {r_comp_std:.2f}): most Risers improve by a moderate and similar amount. "
+    f"Decliners spread out more widely (spread = {d_comp_std:.2f}): some barely dip below "
+    "the threshold, while others collapse dramatically. "
+    f"The worst Decliners reach scores as low as {d_comp.min():.1f}, while the best Risers "
+    f"reach only {r_comp.max():.1f} -- meaning the floor for decline is further from neutral "
+    "than the ceiling for improvement.",
+    BODY))
 story.append(takeaway(
-    f"Decliners (red) shift clearly to the left, Risers (green) shift to the right. "
-    f"But most players sit near zero, meaning the typical NBA player scores about the same "
-    "in both contexts."))
+    f"When players rise in the playoffs, they tend to do so consistently and by a similar "
+    "margin. When they decline, the story varies widely -- some barely slip, others collapse. "
+    "Declining is less predictable than rising."))
 
 # --- 4. Who rises by position/role ---
 story.append(Paragraph("4. Who Rises? Position and Scoring Role", H2))
@@ -963,11 +920,12 @@ story.append(takeaway(
 
 # --- 5. Component breakdown ---
 story.append(PageBreak())
-story.append(Paragraph("5. How Risers and Decliners Differ Across Four Stats", H2))
+story.append(Paragraph("5. How Risers and Decliners Differ Across Three Key Stats", H2))
 story.append(Paragraph(
-    "The chart below directly compares Risers and Decliners on each of the four "
-    "components of our composite score. The bars show the average change from "
-    "regular season to playoffs. Error bars show the 95% confidence interval around the mean.",
+    "The chart below directly compares Risers and Decliners on three "
+    "components of our composite score: scoring, shooting efficiency, and assists. "
+    "The bars show the average change from regular season to playoffs "
+    "(positive = improved in the playoffs, negative = got worse).",
     BODY))
 story.append(embed(p3))
 story.append(Paragraph(
@@ -999,11 +957,34 @@ story.append(Paragraph(
 story.append(embed(p4))
 story.append(Paragraph(
     "Figure 4. Each panel shows a random sample of 250 player-seasons from each group. "
-    "Dots above the diagonal line scored more in the playoffs. Dots below scored less.",
+    "Dots above the diagonal scored more in the playoffs; dots below scored less. "
+    "A Riser can appear below the diagonal if they scored slightly fewer points "
+    "but improved in shooting, assists, and turnovers enough to earn a positive composite score.",
     CAPTION))
+
+# Compute for inline stats
+decl_above_diag = df[(df["TENDENCY"]=="Decliner") & (df["POF_PTS"] > df["REG_PTS"])]
+decl_above_names = ", ".join(
+    decl_above_diag.sort_values("DELTA_PTS", ascending=False)["Player"].head(3).tolist())
+rise_below_diag = df[(df["TENDENCY"]=="Riser") & (df["POF_PTS"] < df["REG_PTS"])]
+pct_rise_below = 100 * len(rise_below_diag) / (df["TENDENCY"]=="Riser").sum()
+
+story.append(Paragraph(
+    f"Among the {(df['TENDENCY']=='Riser').sum():,} Riser seasons, "
+    f"{len(rise_below_diag)} ({pct_rise_below:.0f}%) actually scored fewer points in the playoffs. "
+    "These players still earned a Riser classification because they shot more efficiently, "
+    "created more for teammates, or protected the ball -- the composite score picks this up "
+    "where raw scoring does not. "
+    f"In contrast, of the {(df['TENDENCY']=='Decliner').sum():,} Decliner seasons, "
+    f"only {len(decl_above_diag)} (1%) scored more in the playoffs, "
+    f"and all of them sit right at the decliner threshold: {decl_above_names}, and a few others. "
+    "Declining is nearly always accompanied by a scoring drop.",
+    BODY))
 story.append(takeaway(
-    "For Risers, most dots cluster above the diagonal. For Decliners, most sit below it. "
-    "For Neutral players, the dots hug the diagonal closely."))
+    "A player can rise in the playoffs even while scoring less -- improved efficiency "
+    "and playmaking can outweigh a small point drop. But Decliners almost always score "
+    "less too. Rising without scoring more is possible; declining without scoring less "
+    "almost never happens."))
 
 # --- 7. Serial performers ---
 story.append(Paragraph("7. Consistent Performers: Who Does It Season After Season?", H2))
@@ -1021,13 +1002,13 @@ story.append(Paragraph(
 story.append(Paragraph(
     f"The top serial Risers include {', '.join(serial_r_top5[:4])}, and others widely "
     "recognized as clutch playoff performers. LeBron James, Tim Duncan, and Kawhi Leonard "
-    "are universally regarded as players who raise their level when it matters most — "
+    "are universally regarded as players who raise their level when it matters most - "
     "our composite score lands them exactly where basketball experts would expect.",
     BODY))
 story.append(Paragraph(
     f"The top serial Decliners include {', '.join(serial_d_top5[:4])}. "
     "James Harden and Joel Embiid appearing here is consistent with the most widely "
-    "discussed narrative in modern NBA analysis — both have faced scrutiny for their "
+    "discussed narrative in modern NBA analysis - both have faced scrutiny for their "
     "playoff performances despite regular-season dominance. Our data backs it up.",
     BODY))
 story.append(takeaway(
@@ -1046,21 +1027,24 @@ story.append(Paragraph(
     BODY))
 story.append(embed(p6))
 story.append(Paragraph(
-    "Figure 6. Left: career average composite score for well-known players, colored by their "
-    "public reputation as a playoff performer. Right: average number of playoff games played "
-    "by tendency group — a proxy for how deep a player's team runs in the postseason.",
+    "Figure 6. Average number of playoff games played per season for each tendency group. "
+    "Teams that advance further in the playoffs play more games, "
+    "so this is a direct measure of whether tendency relates to postseason success.",
     CAPTION))
 story.append(Paragraph(
-    "Risers average <b>10.4 playoff games</b> played per season they reach the playoffs. "
+    "Risers average <b>10.4 playoff games</b> per season they reach the postseason. "
     "Decliners average only <b>9.0</b>, a difference that is statistically significant "
-    "(p &lt; 0.001). Interestingly, Neutral players average <b>11.8 games</b> — the highest "
-    "of the three groups — reflecting that the most consistent, reliable players end up "
-    "on the deepest-running rosters.",
+    "(p &lt; 0.001). "
+    "But the most striking result is that Neutral players average <b>11.8 games</b> - "
+    "the highest of the three groups. "
+    "The players who show up consistently, game after game, without rising or falling, "
+    "end up on the teams that go the furthest.",
     BODY))
 story.append(takeaway(
-    "Decliners average 9.0 playoff games, Risers 10.4, and Neutral players actually average "
-    "11.8 — the most consistent players end up on the deepest-running teams. "
-    "Stepping up is valuable, but steady reliability is what championship rosters are built on."))
+    "Surprisingly, it is not the Risers who go deepest into the playoffs - it is the "
+    "Neutral players, at 11.8 games on average. Championship rosters are built on "
+    "reliability, not dramatic improvement. Stepping up is exciting; showing up "
+    "consistently is what wins."))
 
 # --- 9. Predictive model ---
 story.append(Paragraph("9. Can We Predict Who Will Rise Before the Playoffs Start?", H2))
@@ -1068,6 +1052,21 @@ story.append(Paragraph(
     "We trained a machine learning model to predict whether a player will be a Riser or Decliner, "
     "using only their regular-season statistics. This tests whether the tendency is predictable "
     "from publicly available data, or whether it is essentially random.",
+    BODY))
+story.append(Paragraph(
+    "<b>How the model works:</b> "
+    "The model is a Random Forest - an ensemble of 400 decision trees that each vote on the answer. "
+    "The <b>features</b> are 19 regular-season statistics for each player: "
+    "counting stats (points, rebounds, assists, steals, blocks, turnovers, minutes), "
+    "shooting percentages (FG%, 3P%, FT%, eFG%), "
+    "and advanced efficiency metrics (PER, True Shooting %, usage rate, WS/48, VORP, BPM, experience). "
+    "The <b>label</b> it tries to predict is simply: was this player a Riser or a Decliner in the playoffs that year? "
+    "We evaluate it using 5-fold cross-validation "
+    "(the data is split into 5 chunks; the model is trained on 4 and tested on the 5th, "
+    "repeated 5 times so every example is tested on), "
+    "which prevents overfitting. "
+    "Accuracy is reported as AUC (Area Under the Curve): "
+    "0.5 means random guessing, 1.0 means perfect prediction.",
     BODY))
 story.append(embed(p7))
 story.append(Paragraph(
@@ -1093,9 +1092,8 @@ story.append(takeaway(
 story.append(Paragraph("10. Does Your Role in the Regular Season Affect Your Playoffs?", H2))
 story.append(embed(p8))
 story.append(Paragraph(
-    "Figure 8. Box plots comparing scoring change (left) and overall composite score change "
-    "(right) by regular-season scoring role. The dashed line at zero means no change. "
-    "The box shows where the middle 50% of players fall; the line inside is the median.",
+    "Figure 8. Grouped bars showing the Riser rate (green) and Decliner rate (red) "
+    "for each regular-season scoring role. Labels show the exact percentage for each group.",
     CAPTION))
 story.append(Paragraph(
     "Role players (under 8 points per game) cluster tightly around zero on both charts. "
@@ -1118,14 +1116,13 @@ story.append(Paragraph(
     BODY))
 story.append(embed(p9))
 story.append(Paragraph(
-    "Figure 9. Top row: Riser and Decliner rates broken down by age group (left) and "
-    "the full three-way breakdown (right). Bottom row: the same analysis by years "
-    "of experience (left), and violin plots showing the age distribution for each "
-    "tendency group with the average marked by a white dot (right).",
+    "Figure 9. Left: Riser rate (green) and Decliner rate (red) by age group. "
+    "Right: the same breakdown by years of experience in the league. "
+    "Player counts (n) are shown on the x-axis.",
     CAPTION))
 story.append(Paragraph(
     f"The average age of Risers is {age_r_mean:.1f} years, and Decliners {age_d_mean:.1f} years. "
-    f"That difference is not statistically significant (p = {p_age:.2f}), "
+    "That small difference is not statistically significant, "
     "meaning age alone does not determine whether a player rises or declines.",
     BODY))
 story.append(Paragraph(
@@ -1139,59 +1136,42 @@ story.append(takeaway(
     "of playoff experience tend to handle it better. It is what you have been through, "
     "not how old you are, that matters."))
 
-# --- 12. Experience brackets, year-over-year, conference ---
-story.append(Paragraph("12. A Closer Look at Experience and Conference", H2))
+# --- 12. Experience brackets ---
+story.append(Paragraph("12. A Closer Look at Experience", H2))
 story.append(Paragraph(
-    "We dug deeper into three additional angles: exactly how experience level (not just "
-    "age) changes the odds, whether a player's tendency from last year predicts this year, "
-    "and whether Eastern or Western Conference players behave differently.",
+    "The broad age and experience chart in Section 11 showed a directional trend. "
+    "Here we break it into finer brackets to see exactly where the shift happens.",
     BODY))
 story.append(embed(p10, width=6.6*inch))
 story.append(Paragraph(
-    "Figure 10. Top: Riser rate (green) and Decliner rate (red) broken out by years of "
-    "experience in the NBA. Dashed lines show the overall average rates for reference. "
-    "Bottom left: a grid showing how likely a player is to repeat their previous playoff "
-    "tendency the next year. Bottom right: East vs. West conference breakdown.",
+    "Figure 10. Riser rate (green) and Decliner rate (red) broken out by years of "
+    "experience in the NBA. Player counts (n) are shown below each bracket.",
     CAPTION))
 
-story.append(Paragraph("<b>Experience brackets:</b>", BODY))
 story.append(Paragraph(
-    f"Players with only 1-3 years in the league decline in the playoffs at an unusually "
+    f"Players with only 1-3 years in the league decline at an unusually "
     f"high rate ({decl_by_exp[0]:.0f}% Decliners vs {riser_by_exp[0]:.0f}% Risers). "
     "They are simply not used to the intensity yet. As players accumulate experience, "
     "this gap gradually closes. By year 11 and beyond, the rates are nearly equal. "
     f"By 16+ years, the pattern flips: {riser_by_exp[-1]:.0f}% of very experienced players "
     f"rise vs only {decl_by_exp[-1]:.0f}% who decline. "
-    f"(Statistical test: p = {p_exp:.4f} -- highly significant.)",
+    "This pattern is statistically significant.",
     BODY))
 
-story.append(Paragraph("<b>Year-over-year consistency:</b>", BODY))
 story.append(Paragraph(
-    "The bottom-left grid shows transition probabilities. If a player was a Decliner "
-    f"one year, they have a {trans_pct.loc['Decliner','Decliner']:.0f}% chance of declining "
-    f"again the next year -- slightly higher than the baseline rate of {base_d:.0f}%. "
-    f"Past Risers repeat at {trans_pct.loc['Riser','Riser']:.0f}%, close to the baseline. "
-    "This tells us that the Decliner label is slightly stickier than the Riser label -- "
-    "a player who struggles in the playoffs is somewhat more likely to struggle again. "
-    "But the effect is moderate; playoff tendency is not fully set in stone.",
+    "We also checked year-over-year consistency: if a player was a Decliner one year, "
+    f"they had a {trans_pct.loc['Decliner','Decliner']:.0f}% chance of declining again "
+    f"the following year -- slightly above the baseline rate of {base_d:.0f}%. "
+    f"Past Risers repeated at {trans_pct.loc['Riser','Riser']:.0f}%, close to baseline. "
+    "The Decliner label is slightly stickier than the Riser label, but neither is fixed: "
+    "playoff tendency is not fully determined year to year.",
     BODY))
 
-story.append(Paragraph("<b>East vs. West Conference:</b>", BODY))
-story.append(Paragraph(
-    f"Western Conference players rise at {conf_pct_data['West']['Riser']:.0f}% vs "
-    f"{conf_pct_data['East']['Riser']:.0f}% for Eastern Conference players. "
-    f"This small difference is not statistically significant (p = {p_conf:.2f}), "
-    "so we cannot draw a firm conclusion. One possible explanation is that the West "
-    "has historically been a tougher conference, meaning West players face higher-quality "
-    "opponents all regular season and may be better conditioned to elite-level play. "
-    "But the data does not confirm this strongly.",
-    BODY))
 story.append(takeaway(
-    f"Experience matters more than anything else in this analysis. Young players (1-3 yrs) "
-    f"decline at {decl_by_exp[0]:.0f}% -- nearly twice their Riser rate. Veterans (16+ yrs) "
-    f"flip that script, rising at {riser_by_exp[-1]:.0f}% vs declining at {decl_by_exp[-1]:.0f}%. "
-    "Past playoff struggles repeat slightly more often than past successes. Conference makes "
-    "very little difference."))
+    f"Experience matters. Young players (1-3 yrs) decline at {decl_by_exp[0]:.0f}% -- "
+    f"nearly double their Riser rate. Veterans (16+ yrs) flip that script: "
+    f"{riser_by_exp[-1]:.0f}% rise vs only {decl_by_exp[-1]:.0f}% who decline. "
+    "It is what you have been through, not how old you are, that makes the difference."))
 
 story += [
     Spacer(1, 0.2*inch), hr(),
