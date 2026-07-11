@@ -141,36 +141,56 @@ print(f"  {n_total:,} player-seasons  |  Risers {n_r} ({100*n_r/n_total:.0f}%)  
 
 
 # ============================================================
-# FIG 1 - How players score differently in the playoffs
+# FIG 1 - Distribution of composite playoff score
 # ============================================================
 print("Fig 1...")
 fig, ax = plt.subplots(figsize=(10, 5.5))
 fig.suptitle("How Players Perform Differently in the Playoffs",
              fontsize=15, fontweight="bold", y=1.01)
 
-xs = np.linspace(-25, 18, 400)
-for tend in ORDER:
-    vals = df[df["TENDENCY"] == tend]["DELTA_PTS"].dropna().values
-    kde  = gaussian_kde(vals, bw_method=0.3)
-    ax.fill_between(xs, kde(xs), alpha=0.22, color=PAL[tend])
-    ax.plot(xs, kde(xs), color=PAL[tend], linewidth=2.2, label=tend)
+xs = np.linspace(-3.5, 3.5, 400)
+for tend in ["Riser", "Decliner"]:          # Neutral removed
+    vals = df[df["TENDENCY"] == tend]["COMPOSITE"].dropna().values
+    kde  = gaussian_kde(vals, bw_method=0.35)
+    ax.fill_between(xs, kde(xs), alpha=0.25, color=PAL[tend])
+    ax.plot(xs, kde(xs), color=PAL[tend], linewidth=2.4, label=tend)
 
-ax.axvline(0, color="black", linewidth=1.3, linestyle="--", alpha=0.5)
-ax.text(0.4, ax.get_ylim()[1]*0.92, "No change", fontsize=9, color="gray")
-ax.set_xlabel("Points per game in the playoffs  minus  points per game in the regular season",
-              fontsize=11)
+# Threshold lines that define the groups
+ax.axvline( 0.5, color=RISER_COL, linewidth=1.2, linestyle=":", alpha=0.7)
+ax.axvline(-0.5, color=DECL_COL,  linewidth=1.2, linestyle=":", alpha=0.7)
+ax.axvline( 0,   color="black",    linewidth=1.0, linestyle="--", alpha=0.35)
+
+# Average markers
+for tend, xpos in [("Riser", df[df["TENDENCY"]=="Riser"]["COMPOSITE"].mean()),
+                   ("Decliner", df[df["TENDENCY"]=="Decliner"]["COMPOSITE"].mean())]:
+    vals_k = df[df["TENDENCY"]==tend]["COMPOSITE"].dropna().values
+    kde_k  = gaussian_kde(vals_k, bw_method=0.35)
+    y_at_mean = kde_k([xpos])[0]
+    ax.plot([xpos, xpos], [0, y_at_mean], color=PAL[tend],
+            linewidth=1.5, linestyle="-", alpha=0.6)
+    sign = "+" if xpos > 0 else ""
+    ax.text(xpos, y_at_mean + 0.015, f"avg {sign}{xpos:.2f}",
+            ha="center", fontsize=9, color=PAL[tend], fontweight="bold")
+
+ax.set_xlabel(
+    "Overall playoff performance score\n"
+    "(combines scoring, shooting efficiency, assists, and turnovers -- "
+    "positive means improved in playoffs)",
+    fontsize=10.5)
 ax.set_ylabel("Share of player-seasons", fontsize=11)
-ax.set_xlim(-22, 16)
-ax.legend(frameon=False, fontsize=11, loc="upper left")
+ax.set_xlim(-3.5, 3.5)
+ax.legend(frameon=False, fontsize=12, loc="upper left")
 
-ax.annotate("Decliners shift\nto the left",
-            xy=(-6, 0.14), xytext=(-18, 0.22),
-            arrowprops=dict(arrowstyle="->", color=DECL_COL, lw=1.5),
-            fontsize=9, color=DECL_COL)
-ax.annotate("Risers shift\nto the right",
-            xy=(3.5, 0.14), xytext=(8, 0.22),
-            arrowprops=dict(arrowstyle="->", color=RISER_COL, lw=1.5),
-            fontsize=9, color=RISER_COL)
+# Region labels
+ymax = ax.get_ylim()[1]
+ax.text(-2.5, ymax * 0.55, "Declined across\nmultiple dimensions",
+        ha="center", fontsize=9, color=DECL_COL, alpha=0.85)
+ax.text( 2.5, ymax * 0.55, "Improved across\nmultiple dimensions",
+        ha="center", fontsize=9, color=RISER_COL, alpha=0.85)
+ax.text(-0.55, ymax * 0.88, "cutoff", fontsize=7.5, color=DECL_COL,
+        ha="right", alpha=0.7)
+ax.text( 0.57, ymax * 0.88, "cutoff", fontsize=7.5, color=RISER_COL,
+        ha="left", alpha=0.7)
 
 fig.tight_layout()
 p1 = os.path.join(FIG, "q3_fig1_scoring_delta.png")
@@ -251,23 +271,21 @@ fig.suptitle("How Risers and Decliners Differ Across Four Key Stats\n"
              fontsize=13, fontweight="bold", y=1.03)
 
 for ax, (col, label, unit) in zip(axes, stat_info):
-    group_means = {}
-    for tend in ["Riser", "Decliner"]:
-        sub = df[df["TENDENCY"] == tend][col].dropna()
-        group_means[tend] = sub.mean()
-        err = sub.sem() * 1.96
+    for xi, tend in enumerate(["Riser", "Decliner"]):
+        sub   = df[df["TENDENCY"] == tend][col].dropna()
+        mean  = sub.mean()
         color = PAL[tend]
-        bar = ax.bar([tend], [sub.mean()], color=color, alpha=0.85,
-                     edgecolor="white", width=0.55,
-                     yerr=err, capsize=5,
-                     error_kw=dict(ecolor="black", elinewidth=1.2, capthick=1.2))
-        sign = "+" if sub.mean() > 0 else ""
-        ax.text(0 if tend == "Riser" else 1, sub.mean() + (err + abs(sub.mean())*0.05) * (1 if sub.mean() >= 0 else -1),
-                f"{sign}{sub.mean():.2f}",
-                ha="center", va="bottom" if sub.mean() >= 0 else "top",
-                fontsize=10, fontweight="bold", color=color)
+        ax.bar([xi], [mean], color=color, alpha=0.85, edgecolor="white", width=0.55)
+        sign = "+" if mean > 0 else ""
+        # Place label just inside the tip of the bar, clear of the x-axis
+        if mean >= 0:
+            ax.text(xi, mean + 0.01, f"{sign}{mean:.2f}",
+                    ha="center", va="bottom", fontsize=10.5, fontweight="bold", color=color)
+        else:
+            ax.text(xi, mean - 0.01, f"{sign}{mean:.2f}",
+                    ha="center", va="top", fontsize=10.5, fontweight="bold", color=color)
 
-    ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.5)
+    ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.4)
     ax.set_title(label, fontsize=10.5, fontweight="bold")
     ax.set_ylabel(f"Change ({unit})", fontsize=9)
     ax.set_xticks([0, 1])
@@ -287,9 +305,12 @@ print("Fig 4...")
 np.random.seed(42)
 N_SAMPLE = 250
 fig, axes = plt.subplots(1, 3, figsize=(14, 5.5), sharey=True, sharex=True)
-fig.suptitle("Regular Season Scoring vs Playoff Scoring\n"
-             "Each dot is one player-season. Above the line = scored more in playoffs.",
-             fontsize=13, fontweight="bold", y=1.03)
+fig.suptitle(
+    "Regular Season Scoring vs Playoff Scoring\n"
+    "Each dot is one player-season. Above the diagonal = scored more in playoffs.\n"
+    "Colors reflect a 4-stat composite score (shooting, assists, turnovers, scoring)  --  "
+    "a player can score slightly less but still be a Riser overall.",
+    fontsize=11.5, fontweight="bold", y=1.05)
 
 for ax, tend in zip(axes, ORDER):
     sub = df[df["TENDENCY"] == tend].copy()
@@ -351,16 +372,11 @@ for ax, data, col, title in [
     ax.set_yticklabels(names, fontsize=10)
     ax.set_xlabel("Number of playoff seasons with this tendency", fontsize=11)
     ax.set_title(title, fontsize=12, fontweight="bold", color=col)
-    ax.set_xlim(0, vals.max() + 0.5)
+    ax.set_xlim(0, vals.max() + 3.5)   # extra room for labels
     for yi, (v, a) in enumerate(zip(vals, avgs)):
-        label = (f"{int(v)} seasons  |  {a:.1f} reg-season ppg"
-                 if not np.isnan(a) else f"{int(v)} seasons")
-        if v >= 4:
-            ax.text(0.15, yi, label, va="center", ha="left",
-                    fontsize=8.5, color="white", fontweight="bold")
-        else:
-            ax.text(v + 0.1, yi, label, va="center", ha="left",
-                    fontsize=8.5, color=col, fontweight="bold")
+        ppg = f"  ({a:.1f} ppg)" if not np.isnan(a) else ""
+        ax.text(v + 0.15, yi, f"{int(v)} seasons{ppg}",
+                va="center", ha="left", fontsize=8.5, color=col, fontweight="bold")
 
 fig.tight_layout()
 p5 = os.path.join(FIG, "q3_fig5_serial.png")
@@ -372,90 +388,84 @@ plt.close()
 # FIG 6 - Validation: famous players + Finals depth
 # ============================================================
 print("Fig 6 (validation)...")
-famous = [
-    ("LeBron James",   "Riser"),
-    ("Tim Duncan",     "Riser"),
-    ("Kawhi Leonard",  "Riser"),
-    ("Dwyane Wade",    "Riser"),
-    ("Dirk Nowitzki",  "Riser"),
-    ("Tony Parker",    "Riser"),
-    ("Andre Iguodala", "Riser"),
-    ("Draymond Green", "Riser"),
-    ("James Harden",   "Decliner"),
-    ("Joel Embiid",    "Decliner"),
-    ("Joe Johnson",    "Decliner"),
-    ("Chris Paul",     "Neutral"),
-    ("Kobe Bryant",    "Neutral"),
-    ("Stephen Curry",  "Neutral"),
+famous_names = [
+    "LeBron James", "Tim Duncan", "Kawhi Leonard", "Dwyane Wade",
+    "Dirk Nowitzki", "Tony Parker", "Andre Iguodala", "Draymond Green",
+    "James Harden", "Joel Embiid", "Joe Johnson",
+    "Chris Paul", "Kobe Bryant", "Stephen Curry",
 ]
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6.5))
 fig.suptitle("Does Our Score Match Reality? Validation",
              fontsize=14, fontweight="bold", y=1.01)
 
-# Left: famous players dot plot
-names_f, scores_f, reps_f = [], [], []
-for name, reputation in famous:
+# Left: famous players colored by their ACTUAL composite label from our data
+names_f, scores_f, labels_f = [], [], []
+for name in famous_names:
     sub = df[df["Player"] == name]
     if len(sub) > 0:
-        avg = sub["COMPOSITE"].mean()
+        avg   = sub["COMPOSITE"].mean()
+        label = "Riser" if avg > 0.5 else ("Decliner" if avg < -0.5 else "Neutral")
         names_f.append(name)
         scores_f.append(avg)
-        reps_f.append(reputation)
+        labels_f.append(label)
 
 sorted_idx = np.argsort(scores_f)
 names_s  = [names_f[i]  for i in sorted_idx]
 scores_s = [scores_f[i] for i in sorted_idx]
-reps_s   = [reps_f[i]   for i in sorted_idx]
+labels_s = [labels_f[i] for i in sorted_idx]
 
 y = np.arange(len(names_s))
-for yi, (score, rep) in enumerate(zip(scores_s, reps_s)):
-    color = PAL.get(rep, NEUTRAL_COL)
-    ax1.barh(yi, score, color=color, alpha=0.8, edgecolor="white", height=0.65)
-    sign = "+" if score > 0 else ""
-    ha = "left" if score >= 0 else "right"
-    offset = 0.03 if score >= 0 else -0.03
+for yi, (score, lbl) in enumerate(zip(scores_s, labels_s)):
+    color  = PAL[lbl]
+    ax1.barh(yi, score, color=color, alpha=0.82, edgecolor="white", height=0.65)
+    sign   = "+" if score >= 0 else ""
+    ha     = "left" if score >= 0 else "right"
+    offset = 0.04 if score >= 0 else -0.04
     ax1.text(score + offset, yi, f"{sign}{score:.2f}",
              va="center", ha=ha, fontsize=9, color=color, fontweight="bold")
 
-ax1.set_yticks(y); ax1.set_yticklabels(names_s, fontsize=10)
-ax1.axvline(0, color="black", linewidth=1.1, linestyle="--", alpha=0.5)
-ax1.set_xlabel("Average composite playoff score", fontsize=11)
-ax1.set_title("Well-known players: score vs. reputation\n"
-              "(green = known riser, red = known decliner, gray = mixed)",
-              fontsize=10.5)
-patches = [mpatches.Patch(color=v, label=k) for k, v in PAL.items()]
-ax1.legend(handles=patches, frameon=False, fontsize=9, loc="lower right")
+ax1.set_yticks(y)
+ax1.set_yticklabels(names_s, fontsize=10)
+ax1.axvline( 0.5, color=RISER_COL, linewidth=1,   linestyle=":", alpha=0.6)
+ax1.axvline(-0.5, color=DECL_COL,  linewidth=1,   linestyle=":", alpha=0.6)
+ax1.axvline( 0,   color="black",   linewidth=0.8,  linestyle="--", alpha=0.35)
+ax1.set_xlabel("Career average composite playoff score", fontsize=11)
+ax1.set_title(
+    "Famous players: what our score says about them\n"
+    "(color = our model's classification, dotted lines = thresholds)",
+    fontsize=10.5)
+patches_legend = [mpatches.Patch(color=PAL[t], label=t) for t in ORDER]
+ax1.legend(handles=patches_legend, frameon=False, fontsize=9, loc="lower right")
 
-# Right: tendency among Finals players vs first-round exits
-deep  = df[df["POF_G"] >= 20]
-early = df[df["POF_G"] <= 7]
+# Right: average playoff games played by tendency -- clean, unambiguous validation
+avg_games = df.groupby("TENDENCY")["POF_G"].mean().reindex(ORDER)
+n_games   = df.groupby("TENDENCY")["POF_G"].count().reindex(ORDER)
+t_stat_g, p_val_g = stats.ttest_ind(
+    df[df["TENDENCY"] == "Riser"]["POF_G"].dropna(),
+    df[df["TENDENCY"] == "Decliner"]["POF_G"].dropna()
+)
 
-for data, label, x_offset, col_offset in [
-    (deep,  "Made the Finals\n(20+ playoff games)", 0, 0),
-    (early, "First round exit\n(7 or fewer games)", 1, 0),
-]:
-    ct = data["TENDENCY"].value_counts(normalize=True) * 100
-    bottoms = 0
-    for tend in ORDER:
-        val = ct.get(tend, 0)
-        ax2.bar(x_offset, val, bottom=bottoms,
-                color=PAL[tend], edgecolor="white", width=0.5)
-        if val > 6:
-            ax2.text(x_offset, bottoms + val/2, f"{val:.0f}%",
-                     ha="center", va="center", fontsize=11,
-                     color="white", fontweight="bold")
-        bottoms += val
-    ax2.text(x_offset, 103, f"n={len(data):,}", ha="center", fontsize=9, color="gray")
-    ax2.text(x_offset, -7, label, ha="center", fontsize=10)
+for xi, tend in enumerate(ORDER):
+    mean = avg_games[tend]
+    ax2.bar(xi, mean, color=PAL[tend], alpha=0.85, edgecolor="white", width=0.55)
+    ax2.text(xi, mean + 0.1, f"{mean:.1f}", ha="center", va="bottom",
+             fontsize=13, fontweight="bold", color=PAL[tend])
+    ax2.text(xi, 0.25, f"n={n_games[tend]:,}", ha="center", va="bottom",
+             fontsize=8.5, color="white", fontweight="bold")
 
-ax2.set_ylim(-12, 110)
-ax2.set_xlim(-0.5, 1.5)
-ax2.set_xticks([])
-ax2.set_ylabel("% of player-seasons", fontsize=11)
-ax2.set_title("Tendency breakdown:\nplayers who made the Finals vs. first-round exits",
-              fontsize=10.5)
-ax2.legend(handles=patches, frameon=False, fontsize=9, loc="upper right")
+ax2.set_xticks(range(len(ORDER)))
+ax2.set_xticklabels(ORDER, fontsize=12)
+ax2.set_ylabel("Average playoff games played per season", fontsize=11)
+ax2.set_title(
+    "Risers go deeper into the playoffs\n"
+    f"(Riser vs Decliner difference: p = {p_val_g:.4f})",
+    fontsize=11, fontweight="bold")
+ax2.set_ylim(0, avg_games.max() + 2)
+ax2.tick_params(bottom=False)
+ax2.text(len(ORDER)/2 - 0.5, avg_games.max() + 1.4,
+         "More games = team went further in the playoffs",
+         ha="center", fontsize=8.5, color="gray", style="italic")
 
 fig.tight_layout()
 p6 = os.path.join(FIG, "q3_fig6_validation.png")
@@ -497,16 +507,20 @@ imp = pd.Series(rf.feature_importances_ * 100, index=feature_cols)
 imp.index = [nice.get(c, c) for c in imp.index]
 imp = imp.sort_values(ascending=True)
 
-fig, ax = plt.subplots(figsize=(9, 7))
+fig, ax = plt.subplots(figsize=(9, 7.5))
 threshold = imp.quantile(0.65)
 colors = [RISER_COL if v >= threshold else NEUTRAL_COL for v in imp.values]
 ax.barh(imp.index, imp.values, color=colors, edgecolor="white", height=0.7)
-ax.set_xlabel("How useful this stat is for predicting whether a player will rise or decline (%)",
-              fontsize=10)
+ax.set_xlabel("Importance score: how much this regular-season stat helped the model predict playoff tendency (%)",
+              fontsize=9.5)
 ax.set_title(
-    f"What Makes a Playoff Riser? Predictive Model Results\n"
-    f"(model accuracy: AUC = {cv_auc.mean():.2f} out of 1.0 -- better than random guessing)",
-    fontsize=11, fontweight="bold"
+    f"Can We Predict a Playoff Riser Before the Season Starts?\n"
+    f"We gave a machine learning model only each player's regular-season stats -- "
+    f"nothing from the playoffs.\n"
+    f"It learned which stats best predict whether that player would rise or decline. "
+    f"Longer bar = more useful.\n"
+    f"Model accuracy: AUC = {cv_auc.mean():.2f}  (0.5 = random guessing, 1.0 = perfect)",
+    fontsize=9.5, fontweight="bold", loc="left"
 )
 green_patch = mpatches.Patch(color=RISER_COL,   label="Most predictive stats")
 gray_patch  = mpatches.Patch(color=NEUTRAL_COL, label="Less predictive stats")
@@ -520,35 +534,43 @@ top_feat = imp.sort_values(ascending=False).head(5)
 
 
 # ============================================================
-# FIG 8 - Composite delta by scoring role
+# FIG 8 - Riser/Decliner rate by scoring role
 # ============================================================
 print("Fig 8...")
 tier_order = ["Role player\n(under 8 ppg)", "Contributor\n(8-14 ppg)",
               "Starter\n(14-20 ppg)", "Star\n(20+ ppg)"]
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5))
-fig.suptitle("Does a Player's Role Affect How They Respond to the Playoffs?",
+fig, ax = plt.subplots(figsize=(11, 5.5))
+fig.suptitle("Does Your Role Change Your Odds of Rising or Declining in the Playoffs?",
              fontsize=13, fontweight="bold", y=1.01)
 
-for ax, metric, label, ylim in [
-    (ax1, "DELTA_PTS",  "Change in points per game", (-8, 10)),
-    (ax2, "COMPOSITE",  "Overall playoff score\n(composite of points, shooting, assists, turnovers)", (-1.2, 1.2)),
-]:
-    sub = df.dropna(subset=[metric, "scoring_tier"])
-    tier_ns = [sub[sub["scoring_tier"] == t].shape[0] for t in tier_order]
-    tier_labels_n = [f"{t}\n(n={n:,})" for t, n in zip(tier_order, tier_ns)]
-    sns.boxplot(
-        data=sub, x="scoring_tier", y=metric, order=tier_order,
-        palette=["#5dade2","#2e86c1","#1a5276","#0d2137"],
-        flierprops=dict(marker=".", markersize=2, alpha=0.12, color="gray"),
-        width=0.55, linewidth=1.2, ax=ax
-    )
-    ax.axhline(0, color="black", linewidth=1.1, linestyle="--", alpha=0.65)
-    ax.set_ylim(*ylim)
-    ax.set_xlabel("")
-    ax.set_ylabel(label, fontsize=10)
-    ax.set_title(label.split("\n")[0], fontsize=12)
-    ax.set_xticklabels(tier_labels_n, fontsize=9.5)
+w8 = 0.33
+x8 = np.arange(len(tier_order))
+riser_r8, decl_r8, tier_ns8 = [], [], []
+for t in tier_order:
+    sub = df[df["scoring_tier"] == t]["TENDENCY"].dropna()
+    n   = len(sub)
+    riser_r8.append(100 * (sub == "Riser").sum()    / n if n else 0)
+    decl_r8.append( 100 * (sub == "Decliner").sum() / n if n else 0)
+    tier_ns8.append(n)
+
+bars_r8 = ax.bar(x8 - w8/2, riser_r8,  w8, color=RISER_COL, alpha=0.85,
+                 edgecolor="white", label="Riser %")
+bars_d8 = ax.bar(x8 + w8/2, decl_r8,   w8, color=DECL_COL,  alpha=0.85,
+                 edgecolor="white", label="Decliner %")
+
+for i, (r, d) in enumerate(zip(riser_r8, decl_r8)):
+    ax.text(i - w8/2, r + 0.5, f"{r:.0f}%", ha="center", fontsize=10,
+            color=RISER_COL, fontweight="bold")
+    ax.text(i + w8/2, d + 0.5, f"{d:.0f}%", ha="center", fontsize=10,
+            color=DECL_COL,  fontweight="bold")
+
+ax.set_xticks(x8)
+ax.set_xticklabels([f"{t}\n(n={n:,})" for t, n in zip(tier_order, tier_ns8)], fontsize=10)
+ax.set_ylim(0, max(max(riser_r8), max(decl_r8)) + 8)
+ax.set_ylabel("% of player-seasons in this role", fontsize=11)
+ax.legend(frameon=False, fontsize=11, loc="upper left")
+ax.tick_params(bottom=False)
 
 fig.tight_layout()
 p8 = os.path.join(FIG, "q3_fig8_delta_by_tier.png")
@@ -572,15 +594,13 @@ df["age_bucket_label"] = pd.cut(
     labels=age_buckets
 )
 
-fig = plt.figure(figsize=(14, 10))
-gs  = fig.add_gridspec(2, 2, hspace=0.45, wspace=0.35)
+fig, (ax1, ax3) = plt.subplots(1, 2, figsize=(14, 5.5))
 fig.suptitle("Does Age or Experience Change How Players Perform in the Playoffs?",
-             fontsize=14, fontweight="bold", y=1.02)
+             fontsize=14, fontweight="bold", y=1.01)
 
 w = 0.35
 
-# top left: Riser vs Decliner rate by age
-ax1 = fig.add_subplot(gs[0, 0])
+# Left: Riser vs Decliner rate by age group
 riser_r_age, decl_r_age, age_ns = [], [], []
 for ab in age_buckets:
     sub = df[df["age_bucket_label"] == ab]["TENDENCY"].dropna()
@@ -593,43 +613,20 @@ x = np.arange(len(age_buckets))
 ax1.bar(x - w/2, riser_r_age, w, color=RISER_COL, alpha=0.85, edgecolor="white", label="Riser %")
 ax1.bar(x + w/2, decl_r_age,  w, color=DECL_COL,  alpha=0.85, edgecolor="white", label="Decliner %")
 ax1.set_xticks(x)
-ax1.set_xticklabels([f"{b}\n(n={n:,})" for b, n in zip(age_buckets, age_ns)], fontsize=8.5)
-ax1.set_ylim(0, 55); ax1.set_ylabel("% of player-seasons", fontsize=10)
-ax1.set_title("Riser vs. Decliner Rate by Age Group", fontsize=11, fontweight="bold")
-ax1.legend(frameon=False, fontsize=9)
+ax1.set_xticklabels([f"{b}\n(n={n:,})" for b, n in zip(age_buckets, age_ns)], fontsize=9)
+ax1.set_ylim(0, 55); ax1.set_ylabel("% of player-seasons", fontsize=11)
+ax1.set_title("Riser vs. Decliner Rate by Age Group\n"
+              f"(age alone: p = {p_age:.2f} -- not significant)",
+              fontsize=11, fontweight="bold")
+ax1.legend(frameon=False, fontsize=10)
+ax1.tick_params(bottom=False)
 for i, (r, d) in enumerate(zip(riser_r_age, decl_r_age)):
-    ax1.text(i - w/2, r + 0.8, f"{r:.0f}%", ha="center", fontsize=8,
+    ax1.text(i - w/2, r + 0.8, f"{r:.0f}%", ha="center", fontsize=9,
              color=RISER_COL, fontweight="bold")
-    ax1.text(i + w/2, d + 0.8, f"{d:.0f}%", ha="center", fontsize=8,
+    ax1.text(i + w/2, d + 0.8, f"{d:.0f}%", ha="center", fontsize=9,
              color=DECL_COL, fontweight="bold")
 
-# top right: stacked by age
-ax2 = fig.add_subplot(gs[0, 1])
-age_df = df[df["age_bucket_label"].notna() & df["TENDENCY"].notna()]
-ct = (age_df.groupby(["age_bucket_label","TENDENCY"]).size().unstack(fill_value=0))
-for t in ORDER:
-    if t not in ct.columns: ct[t] = 0
-ct  = ct[ORDER].reindex(age_buckets)
-pct = ct.div(ct.sum(axis=1), axis=0) * 100
-
-bottoms = np.zeros(len(age_buckets))
-for tend in ORDER:
-    ax2.bar(np.arange(len(age_buckets)), pct[tend].values, bottom=bottoms,
-            color=PAL[tend], edgecolor="white", linewidth=0.8, alpha=0.9, label=tend)
-    for i, (h, b) in enumerate(zip(pct[tend].values, bottoms)):
-        if h > 8:
-            ax2.text(i, b + h/2, f"{h:.0f}%",
-                     ha="center", va="center", fontsize=9, color="white", fontweight="bold")
-    bottoms += pct[tend].values
-
-ax2.set_xticks(np.arange(len(age_buckets)))
-ax2.set_xticklabels(age_buckets, fontsize=9)
-ax2.set_ylim(0, 108); ax2.set_ylabel("% of player-seasons", fontsize=10)
-ax2.set_title("Full Breakdown by Age Group", fontsize=11, fontweight="bold")
-ax2.legend(frameon=False, fontsize=9, loc="upper right")
-
-# bottom left: Riser vs Decliner by experience
-ax3 = fig.add_subplot(gs[1, 0])
+# Right: Riser vs Decliner by experience bucket
 exp_buckets = ["Rookie\n(0-3 yrs)", "Young\n(4-7)", "Prime\n(8-12)", "Veteran\n(13+)"]
 exp_df = df[df["exp_bucket"].notna() & df["TENDENCY"].notna()]
 riser_r_exp, decl_r_exp, exp_ns = [], [], []
@@ -645,35 +642,15 @@ ax3.bar(xe - w/2, riser_r_exp, w, color=RISER_COL, alpha=0.85, edgecolor="white"
 ax3.bar(xe + w/2, decl_r_exp,  w, color=DECL_COL,  alpha=0.85, edgecolor="white", label="Decliner %")
 ax3.set_xticks(xe)
 ax3.set_xticklabels([f"{b}\n(n={n:,})" for b, n in zip(exp_buckets, exp_ns)], fontsize=9.5)
-ax3.set_ylim(0, 55); ax3.set_ylabel("% of player-seasons", fontsize=10)
+ax3.set_ylim(0, 55); ax3.set_ylabel("% of player-seasons", fontsize=11)
 ax3.set_title("Riser vs. Decliner Rate by Experience", fontsize=11, fontweight="bold")
-ax3.legend(frameon=False, fontsize=9)
+ax3.legend(frameon=False, fontsize=10)
+ax3.tick_params(bottom=False)
 for i, (r, d) in enumerate(zip(riser_r_exp, decl_r_exp)):
-    ax3.text(i - w/2, r + 0.8, f"{r:.0f}%", ha="center", fontsize=8,
+    ax3.text(i - w/2, r + 0.8, f"{r:.0f}%", ha="center", fontsize=9,
              color=RISER_COL, fontweight="bold")
-    ax3.text(i + w/2, d + 0.8, f"{d:.0f}%", ha="center", fontsize=8,
+    ax3.text(i + w/2, d + 0.8, f"{d:.0f}%", ha="center", fontsize=9,
              color=DECL_COL, fontweight="bold")
-
-# bottom right: violin age by tendency
-ax4 = fig.add_subplot(gs[1, 1])
-age_v = df[df["approx_age"].between(18, 42) & df["TENDENCY"].notna()].copy()
-sns.violinplot(data=age_v, x="TENDENCY", y="approx_age",
-               order=ORDER, palette=PAL, inner="quartile",
-               linewidth=1.2, ax=ax4, alpha=0.85)
-for i, tend in enumerate(ORDER):
-    m = age_v[age_v["TENDENCY"] == tend]["approx_age"].mean()
-    ax4.scatter([i], [m], color="white", s=60, zorder=5,
-                edgecolors="black", linewidth=1.2)
-    ax4.text(i, m + 0.7, f"{m:.1f}", ha="center", fontsize=9, fontweight="bold")
-
-ax4.set_xlabel("")
-ax4.set_ylabel("Player age at the time of the season", fontsize=10)
-ax4.set_title(
-    f"Age Distribution by Tendency\n"
-    f"(Statistical test: p = {p_age:.2f} -- no significant difference)",
-    fontsize=11, fontweight="bold"
-)
-ax4.set_xticklabels(ORDER, fontsize=11)
 
 p9 = os.path.join(FIG, "q3_fig9_age_experience.png")
 fig.savefig(p9, dpi=150, bbox_inches="tight")
@@ -681,7 +658,7 @@ plt.close()
 
 
 # ============================================================
-# FIG 10 - Experience brackets + year-over-year + conference
+# FIG 10 - Fine-grained experience brackets + year-over-year
 # ============================================================
 print("Fig 10...")
 
@@ -710,121 +687,82 @@ for t in ORDER:
     if t not in trans_pct.columns: trans_pct[t] = 0.0
 trans_pct = trans_pct[ORDER].reindex(ORDER)
 
-# Conference breakdown
+# Stats needed for PDF text
 conf_valid = df.dropna(subset=["conference"]).copy()
 _, p_conf, _, _ = chi2_contingency(
     pd.crosstab(conf_valid["conference"], conf_valid["TENDENCY"])
 )
-exp_r   = df[df["TENDENCY"] == "Riser"]["season_exp"].dropna()
-exp_d   = df[df["TENDENCY"] == "Decliner"]["season_exp"].dropna()
+conf_pct_data = {
+    conf: {t: (conf_valid[conf_valid["conference"]==conf]["TENDENCY"] == t).mean()*100
+           for t in ORDER}
+    for conf in ["East", "West"]
+}
+exp_r    = df[df["TENDENCY"] == "Riser"]["season_exp"].dropna()
+exp_d    = df[df["TENDENCY"] == "Decliner"]["season_exp"].dropna()
 _, p_exp = mannwhitneyu(exp_r, exp_d)
 
-# --- Figure ---
-fig = plt.figure(figsize=(16, 11))
-gs  = fig.add_gridspec(2, 2, hspace=0.5, wspace=0.38)
-fig.suptitle("Experience, Conference, and Year-over-Year Patterns",
+# --- Figure: 2 panels (experience brackets top, heatmap bottom) ---
+fig = plt.figure(figsize=(16, 10))
+gs  = fig.add_gridspec(2, 1, hspace=0.55)
+fig.suptitle("Experience and Year-over-Year Patterns",
              fontsize=14, fontweight="bold", y=1.01)
 
-# Top left: experience bracket
-ax_exp = fig.add_subplot(gs[0, :])   # spans both columns
-w10 = 0.35
+# Top: experience bracket bars (full width)
+ax_exp = fig.add_subplot(gs[0])
+w10  = 0.35
 xe10 = np.arange(len(EXP_LABELS))
-bars_r = ax_exp.bar(xe10 - w10/2, riser_by_exp,  w10, color=RISER_COL, alpha=0.85,
-                    edgecolor="white", label="Riser %")
-bars_d = ax_exp.bar(xe10 + w10/2, decl_by_exp,   w10, color=DECL_COL,  alpha=0.85,
-                    edgecolor="white", label="Decliner %")
-
-# Overall baselines
-base_r = (df["TENDENCY"] == "Riser").mean() * 100
-base_d = (df["TENDENCY"] == "Decliner").mean() * 100
-ax_exp.axhline(base_r, color=RISER_COL,  linewidth=1.3, linestyle="--", alpha=0.55)
-ax_exp.axhline(base_d, color=DECL_COL,   linewidth=1.3, linestyle="--", alpha=0.55)
-ax_exp.text(len(EXP_LABELS) - 0.48, base_r + 0.5, f"Overall avg {base_r:.0f}%",
-            color=RISER_COL, fontsize=8, alpha=0.8)
-ax_exp.text(len(EXP_LABELS) - 0.48, base_d - 1.5, f"Overall avg {base_d:.0f}%",
-            color=DECL_COL,  fontsize=8, alpha=0.8)
+ax_exp.bar(xe10 - w10/2, riser_by_exp, w10, color=RISER_COL, alpha=0.85,
+           edgecolor="white", label="Riser %")
+ax_exp.bar(xe10 + w10/2, decl_by_exp,  w10, color=DECL_COL,  alpha=0.85,
+           edgecolor="white", label="Decliner %")
 
 for i, (r, d, n) in enumerate(zip(riser_by_exp, decl_by_exp, exp_ns_10)):
-    ax_exp.text(i - w10/2, r + 0.6, f"{r:.0f}%", ha="center", fontsize=9,
+    ax_exp.text(i - w10/2, r + 0.6, f"{r:.0f}%", ha="center", fontsize=10,
                 color=RISER_COL, fontweight="bold")
-    ax_exp.text(i + w10/2, d + 0.6, f"{d:.0f}%", ha="center", fontsize=9,
+    ax_exp.text(i + w10/2, d + 0.6, f"{d:.0f}%", ha="center", fontsize=10,
                 color=DECL_COL,  fontweight="bold")
-    ax_exp.text(i, -3.5, f"n={n:,}", ha="center", fontsize=8, color="gray")
+    ax_exp.text(i, -3.2, f"n={n:,}", ha="center", fontsize=8.5, color="gray")
 
 ax_exp.set_xticks(xe10)
-ax_exp.set_xticklabels(EXP_LABELS, fontsize=11)
-ax_exp.set_ylim(-6, 45)
+ax_exp.set_xticklabels(EXP_LABELS, fontsize=12)
+ax_exp.set_ylim(-5, 42)
 ax_exp.set_ylabel("% of player-seasons", fontsize=11)
 ax_exp.set_title(
-    f"How Experience Changes Your Odds of Rising or Declining in the Playoffs\n"
-    f"(statistical test Riser vs Decliner experience: p = {p_exp:.4f})",
+    f"How Experience Changes Your Odds of Rising or Declining  "
+    f"(p = {p_exp:.4f})",
     fontsize=12, fontweight="bold"
 )
-ax_exp.legend(frameon=False, fontsize=10, loc="upper left")
-
-# Add a shaded annotation for the key crossover
+ax_exp.legend(frameon=False, fontsize=11, loc="upper left")
+ax_exp.tick_params(bottom=False)
 ax_exp.annotate("Young players decline\nmuch more than they rise",
-                xy=(0.1, 33), xytext=(0.6, 41),
+                xy=(0.1, 33), xytext=(0.55, 39),
                 arrowprops=dict(arrowstyle="->", color=DECL_COL, lw=1.4),
-                fontsize=9, color=DECL_COL)
+                fontsize=9.5, color=DECL_COL)
 ax_exp.annotate("Veterans rise more\nthan they decline",
-                xy=(4, 20.7), xytext=(3.3, 38),
+                xy=(4, riser_by_exp[-1]), xytext=(3.35, 36),
                 arrowprops=dict(arrowstyle="->", color=RISER_COL, lw=1.4),
-                fontsize=9, color=RISER_COL)
+                fontsize=9.5, color=RISER_COL)
 
-# Bottom left: year-over-year heatmap
-ax_yoy = fig.add_subplot(gs[1, 0])
+# Bottom: year-over-year heatmap (centered)
+ax_yoy = fig.add_subplot(gs[1])
 cmap = plt.cm.RdYlGn
 im = ax_yoy.imshow(trans_pct.values, cmap=cmap, aspect="auto", vmin=10, vmax=30)
-ax_yoy.set_xticks(range(3)); ax_yoy.set_xticklabels(ORDER, fontsize=10)
-ax_yoy.set_yticks(range(3)); ax_yoy.set_yticklabels(ORDER, fontsize=10)
-ax_yoy.set_xlabel("Tendency NEXT year", fontsize=10)
-ax_yoy.set_ylabel("Tendency THIS year", fontsize=10)
-ax_yoy.set_title("Year-over-Year Tendency Consistency\n"
-                 "(Does last year's label predict this year?)", fontsize=11, fontweight="bold")
+ax_yoy.set_xticks(range(3)); ax_yoy.set_xticklabels(ORDER, fontsize=11)
+ax_yoy.set_yticks(range(3)); ax_yoy.set_yticklabels(ORDER, fontsize=11)
+ax_yoy.set_xlabel("Tendency NEXT season", fontsize=11)
+ax_yoy.set_ylabel("Tendency THIS season", fontsize=11)
+ax_yoy.set_title(
+    "Does This Season's Label Predict Next Season?\n"
+    "Each row shows: if a player had tendency X this year, what % had tendency Y next year",
+    fontsize=11, fontweight="bold")
 for i in range(3):
     for j in range(3):
         val = trans_pct.values[i, j]
         ax_yoy.text(j, i, f"{val:.0f}%",
-                    ha="center", va="center", fontsize=13, fontweight="bold",
+                    ha="center", va="center", fontsize=14, fontweight="bold",
                     color="white" if (val < 14 or val > 26) else "black")
-plt.colorbar(im, ax=ax_yoy, shrink=0.8, label="% of player-seasons")
-
-# Bottom right: conference breakdown
-ax_conf = fig.add_subplot(gs[1, 1])
-conf_order = ["East", "West"]
-conf_pct_data = {}
-for conf in conf_order:
-    sub = conf_valid[conf_valid["conference"] == conf]["TENDENCY"]
-    conf_pct_data[conf] = {t: (sub == t).mean() * 100 for t in ORDER}
-
-bottoms = np.zeros(2)
-for tend in ORDER:
-    vals = [conf_pct_data[c][tend] for c in conf_order]
-    ax_conf.bar([0, 1], vals, bottom=bottoms, color=PAL[tend],
-                edgecolor="white", linewidth=0.8, alpha=0.9, label=tend)
-    for xi, (v, b) in enumerate(zip(vals, bottoms)):
-        if v > 7:
-            ax_conf.text(xi, b + v / 2, f"{v:.0f}%",
-                         ha="center", va="center", fontsize=12,
-                         color="white", fontweight="bold")
-    bottoms += np.array(vals)
-
-n_east = (conf_valid["conference"] == "East").sum()
-n_west = (conf_valid["conference"] == "West").sum()
-ax_conf.text(0, 103, f"n={n_east:,}", ha="center", fontsize=9, color="gray")
-ax_conf.text(1, 103, f"n={n_west:,}", ha="center", fontsize=9, color="gray")
-ax_conf.set_xticks([0, 1])
-ax_conf.set_xticklabels(["Eastern Conference", "Western Conference"], fontsize=11)
-ax_conf.set_ylim(0, 110)
-ax_conf.set_ylabel("% of player-seasons", fontsize=11)
-ax_conf.set_title(
-    f"East vs. West Conference\n(p = {p_conf:.2f} -- small difference, not conclusive)",
-    fontsize=11, fontweight="bold"
-)
-patches = [mpatches.Patch(color=PAL[t], label=t) for t in ORDER]
-ax_conf.legend(handles=patches, frameon=False, fontsize=9, loc="lower center",
-               bbox_to_anchor=(0.5, -0.18), ncol=3)
+plt.colorbar(im, ax=ax_yoy, shrink=0.55, label="% of player-seasons",
+             orientation="vertical", pad=0.02)
 
 p10 = os.path.join(FIG, "q3_fig10_experience_conference.png")
 fig.savefig(p10, dpi=150, bbox_inches="tight")
@@ -859,6 +797,9 @@ early_pct_decl  = (df[df["POF_G"] <= 7]["TENDENCY"] == "Decliner").mean() * 100
 
 stat_means_r = {c: df[df["TENDENCY"]=="Riser"][c].mean()   for c in ["DELTA_PTS","DELTA_eFG%","DELTA_AST","DELTA_TOV"]}
 stat_means_d = {c: df[df["TENDENCY"]=="Decliner"][c].mean() for c in ["DELTA_PTS","DELTA_eFG%","DELTA_AST","DELTA_TOV"]}
+
+base_r = (df["TENDENCY"] == "Riser").mean() * 100
+base_d = (df["TENDENCY"] == "Decliner").mean() * 100
 
 
 # ============================================================
@@ -1258,47 +1199,6 @@ story.append(takeaway(
     f"flip that script, rising at {riser_by_exp[-1]:.0f}% vs declining at {decl_by_exp[-1]:.0f}%. "
     "Past playoff struggles repeat slightly more often than past successes. Conference makes "
     "very little difference."))
-
-# --- 13. Conclusions ---
-story.append(Paragraph("13. Conclusions", H2))
-conclusions = [
-    f"<b>The playoffs are genuinely harder.</b> When looking at composite performance "
-    f"(not just scoring), {n_d:,} players declined vs. {n_r:,} who rose. "
-    "Most players stayed roughly the same.",
-
-    "<b>Stars are the most unpredictable.</b> High-volume scorers have the highest Riser "
-    "rate AND the highest Decliner rate. They either step up or get shut down. "
-    "Role players almost always stay Neutral.",
-
-    "<b>Guards rise most by position.</b> Centers tend to be the most Neutral, likely "
-    "because their defensive role is more defined in the playoffs.",
-
-    "<b>Composite Risers improve across all four dimensions.</b> Points, shooting efficiency, "
-    "assists, and turnovers all move in the right direction at once.",
-
-    f"<b>Great playoff performers help their teams win.</b> Among players who reached the "
-    f"Finals, {deep_pct_riser:.0f}% were Risers compared to only "
-    f"{(df[df['POF_G'] <= 7]['TENDENCY']=='Riser').mean()*100:.0f}% "
-    "among first-round exits.",
-
-    f"<b>Playoff tendency is partially predictable</b> from regular-season stats "
-    f"(AUC = {cv_auc.mean():.2f}). Efficiency metrics predict it better than scoring volume.",
-
-    "<b>Age does not matter. Experience does -- and it matters a lot.</b> "
-    f"Players with 1-3 years in the league decline at {decl_by_exp[0]:.0f}% -- "
-    f"nearly twice their Riser rate. By 16+ years, that inverts: {riser_by_exp[-1]:.0f}% "
-    f"rise vs {decl_by_exp[-1]:.0f}% decline.",
-
-    "<b>Past playoff struggles are slightly sticky.</b> Players who declined last year "
-    "are somewhat more likely to decline again. Rising is less persistent, but neither "
-    "tendency fully determines the future.",
-
-    "<b>Conference (East vs. West) makes little difference.</b> There is a small trend "
-    "toward West players rising more, but it is not statistically significant.",
-]
-for i, c in enumerate(conclusions, 1):
-    story.append(Paragraph(f"{i}. {c}", STAT))
-    story.append(Spacer(1, 4))
 
 story += [
     Spacer(1, 0.2*inch), hr(),
