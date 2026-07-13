@@ -1,0 +1,11 @@
+experiment,model,n_features,mae,rmse,r2,train_time_s
+model_naive_baseline,Naive Baseline,43,7.047,8.808,-0.0,0.0
+model_ridge,Ridge,43,4.577,6.0,0.536,0.0
+model_lasso,Lasso,43,4.626,6.022,0.533,0.2
+model_elasticnet,ElasticNet,43,4.606,6.016,0.533,0.2
+model_random_forest,Random Forest,43,4.614,6.01,0.534,34.1
+model_extra_trees,Extra Trees,43,4.61,6.004,0.535,9.8
+model_gradient_boosting,Gradient Boosting,43,4.577,5.994,0.537,113.6
+model_xgboost,XGBoost,43,4.576,5.998,0.536,2.1
+model_lightgbm,LightGBM,43,4.59,6.015,0.534,6.0
+model_catboost,CatBoost,43,4.54,6.049,0.528,3.1

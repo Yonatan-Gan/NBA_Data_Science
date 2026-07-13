@@ -1,0 +1,114 @@
+09:23:58  INFO      ============================================================
+09:23:58  INFO        Q1 — Predicting NBA Player Next-Game Performance
+09:23:58  INFO        Understanding and Predicting NBA Player Performance
+09:23:58  INFO        Using Context-Aware Machine Learning
+09:23:58  INFO      ============================================================
+09:23:58  INFO      
+[1/6] Loading data...
+09:23:58  INFO      ============================================================
+09:23:58  INFO        NBADataLoader — loading all sources
+09:23:58  INFO      ============================================================
+09:23:59  INFO      Game logs: 150,087 rows from 6 files
+09:23:59  INFO      Team game logs: 14,118 rows
+09:23:59  INFO      Player bio: 530 rows
+09:23:59  INFO      Career stats: 4,914 rows
+09:23:59  WARNING   Kaggle advanced stats (Seasons_Stats.csv) not found
+09:23:59  INFO      Salaries: 15,857 rows from player_salaries.csv
+09:23:59  INFO      BRef advanced: 5,438 rows from 186 files
+09:24:00  INFO      BRef per_game: 5,438 rows from 186 files
+09:24:00  INFO      
+[2/6] Preprocessing...
+09:24:00  INFO      Preprocessing: 150,087 raw rows
+09:24:00  INFO        Dropped 80 DNP rows (MIN=0 or NaN)
+09:24:00  INFO        Kept 910 players with ≥10 games (691 rows removed)
+09:24:00  INFO        Clean result: 149,316 rows, 910 players, 6 seasons
+09:24:00  INFO      
+[3/6] Feature engineering...
+09:24:13  INFO        ✓ player_form features built
+09:24:25  INFO        ✓ schedule features built
+09:24:25  WARNING     OPP_DEF_RATING not available from any source — using league average 112.0. Ensure OPP_TEAM_ID exists in player logs and team_gamelogs are loaded.
+09:24:25  INFO        ✓ opponent features built
+09:24:25  INFO        ✓ team_context features built
+09:24:25  INFO        ✓ career features built
+09:24:25  INFO        Feature engineering complete: ~129 new columns built
+09:24:25  INFO        Final modelling dataset: 149,316 rows, 910 players
+09:24:25  INFO      
+[4/6] Running experiments...
+09:24:25  INFO      Split: 119,452 train, 29,864 test
+09:24:25  INFO      
+────────────────────────────────────────────────────────────
+09:24:25  INFO        ABLATION STUDY (XGBoost, varying feature groups)
+09:24:25  INFO      ────────────────────────────────────────────────────────────
+09:24:26  INFO        EXP1_baseline                       | XGBoost            | MAE=4.622  RMSE=6.035  R²=0.531  [1.7s train]
+09:24:28  INFO        EXP2_schedule                       | XGBoost            | MAE=4.612  RMSE=6.025  R²=0.532  [1.8s train]
+09:24:30  INFO        EXP3_opponent                       | XGBoost            | MAE=4.614  RMSE=6.028  R²=0.532  [1.9s train]
+09:24:32  INFO        EXP4_team                           | XGBoost            | MAE=4.612  RMSE=6.025  R²=0.532  [2.0s train]
+09:24:34  INFO        EXP5_career                         | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
+09:24:37  INFO        EXP6_all                            | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
+09:24:37  INFO      
+────────────────────────────────────────────────────────────
+09:24:37  INFO        MODEL COMPARISON (all features)
+09:24:37  INFO      ────────────────────────────────────────────────────────────
+09:24:37  INFO        model_naive_baseline                | Naive Baseline     | MAE=7.047  RMSE=8.808  R²=-0.000  [0.0s train]
+09:24:37  INFO        model_ridge                         | Ridge              | MAE=4.577  RMSE=6.000  R²=0.536  [0.0s train]
+09:24:37  INFO        model_lasso                         | Lasso              | MAE=4.626  RMSE=6.022  R²=0.533  [0.2s train]
+09:24:37  INFO        model_elasticnet                    | ElasticNet         | MAE=4.606  RMSE=6.016  R²=0.533  [0.2s train]
+09:25:11  INFO        model_random_forest                 | Random Forest      | MAE=4.614  RMSE=6.010  R²=0.534  [34.1s train]
+09:25:21  INFO        model_extra_trees                   | Extra Trees        | MAE=4.610  RMSE=6.004  R²=0.535  [9.8s train]
+09:27:15  INFO        model_gradient_boosting             | Gradient Boosting  | MAE=4.577  RMSE=5.994  R²=0.537  [113.6s train]
+09:27:17  INFO        model_xgboost                       | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
+09:27:23  INFO        model_lightgbm                      | LightGBM           | MAE=4.590  RMSE=6.015  R²=0.534  [6.0s train]
+09:27:27  INFO        model_catboost                      | CatBoost           | MAE=4.540  RMSE=6.049  R²=0.528  [3.1s train]
+09:27:27  INFO      
+  Ablation results:
+   experiment   model  n_features   mae  rmse    r2  train_time_s
+EXP1_baseline XGBoost          21 4.622 6.035 0.531           1.7
+EXP2_schedule XGBoost          28 4.612 6.025 0.532           1.8
+EXP3_opponent XGBoost          33 4.614 6.028 0.532           1.9
+    EXP4_team XGBoost          38 4.612 6.025 0.532           2.0
+  EXP5_career XGBoost          43 4.576 5.998 0.536           2.1
+     EXP6_all XGBoost          43 4.576 5.998 0.536           2.1
+09:27:27  INFO      
+  Model comparison:
+             experiment             model  n_features   mae  rmse     r2  train_time_s
+   model_naive_baseline    Naive Baseline          43 7.047 8.808 -0.000           0.0
+            model_ridge             Ridge          43 4.577 6.000  0.536           0.0
+            model_lasso             Lasso          43 4.626 6.022  0.533           0.2
+       model_elasticnet        ElasticNet          43 4.606 6.016  0.533           0.2
+    model_random_forest     Random Forest          43 4.614 6.010  0.534          34.1
+      model_extra_trees       Extra Trees          43 4.610 6.004  0.535           9.8
+model_gradient_boosting Gradient Boosting          43 4.577 5.994  0.537         113.6
+          model_xgboost           XGBoost          43 4.576 5.998  0.536           2.1
+         model_lightgbm          LightGBM          43 4.590 6.015  0.534           6.0
+         model_catboost          CatBoost          43 4.540 6.049  0.528           3.1
+09:27:27  INFO      
+  Best model: CatBoost  MAE=4.540  R²=0.528
+09:27:27  INFO      
+[5/6] Statistical analysis...
+09:27:27  INFO        Fatigue test: t=0.09, p=0.9276, d=0.005 — Within-player analysis (321 players, MIN>20): B2B games does not reduce (or slightly increases) scoring by 0.01 pts on average (mean diff=+0.01, CI=[-5.64,5.67], not significant at α=0.05). Test: paired t (within-player).
+09:27:27  INFO        Scoring tier test: ANOVA F=609.23, p=0.0000, η²=0.058. Error differs significantly across scoring tiers.
+09:27:27  INFO        Home/away test: Home game MAE=4.57 vs Away MAE=4.51 (not significant)
+09:27:27  INFO      
+  Statistical tests:
+                                                         Question p-value Significant
+Does back-to-back fatigue reduce scoring? (MIN>20, within-player)  0.9276           ✗
+                   Are stars harder to predict than role players?  0.0000           ✓
+                                Are home games easier to predict?  0.2671           ✗
+09:27:27  INFO      
+[6/6] Generating figures...
+09:27:27  INFO        ✓  Q1_fig01_ablation.png
+09:27:28  INFO        ✓  Q1_fig02_model_comparison.png
+09:27:28  INFO        ✓  Q1_fig03_actual_vs_predicted.png
+09:27:29  INFO        ✓  Q1_fig04_shap_summary.png
+09:27:29  INFO        ✓  SHAP figure generated
+09:27:29  INFO        ✓  Q1_fig05_context_effects.png
+09:27:30  INFO        ✓  Q1_fig06_error_by_subgroup.png
+09:27:30  INFO        ✓  Q1_fig07_statistical_tests.png
+09:27:30  INFO        ✓  Q1_fig08_rolling_predictions.png
+09:27:30  INFO      
+============================================================
+09:27:30  INFO        ✅  Pipeline complete in 211.9s
+09:27:30  INFO        Figures  → /Users/yonagan/Desktop/Year2/nand2tetris/projects/07/NBA_Data_Science/figures/Q1/
+09:27:30  INFO        Results  → /Users/yonagan/Desktop/Year2/nand2tetris/projects/07/NBA_Data_Science/Q1_v2/results/
+09:27:30  INFO      ============================================================
+

@@ -1,0 +1,7 @@
+experiment,model,n_features,mae,rmse,r2,train_time_s
+EXP1_baseline,XGBoost,21,4.622,6.035,0.531,1.7
+EXP2_schedule,XGBoost,28,4.612,6.025,0.532,1.8
+EXP3_opponent,XGBoost,33,4.614,6.028,0.532,1.9
+EXP4_team,XGBoost,38,4.612,6.025,0.532,2.0
+EXP5_career,XGBoost,43,4.576,5.998,0.536,2.1
+EXP6_all,XGBoost,43,4.576,5.998,0.536,2.1
