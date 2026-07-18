@@ -1,0 +1,4 @@
+Question,Test,Statistic,p-value,Effect size,Significant,Interpretation
+"Does back-to-back fatigue reduce scoring? (MIN>20, within-player)",paired t (within-player),0.091,0.9276,0.005 (Cohen's d),✗,"Within-player analysis (321 players, MIN>20): B2B games does not reduce (or slightly increases) scoring by 0.01 pts on average (mean diff=+0.01, CI=[-5.64,5.67], not significant at α=0.05). Test: paired t (within-player)."
+Are stars harder to predict than role players?,F (ANOVA),609.231,0.0000,0.058 (η²),✓,"ANOVA F=609.23, p=0.0000, η²=0.058. Error differs significantly across scoring tiers."
+Are home games easier to predict?,t,1.11,0.2671,0.013 (Cohen's d),✗,Home game MAE=4.57 vs Away MAE=4.51 (not significant)
