@@ -178,9 +178,14 @@ def build_success_by_archetype(df):
     ax.set_title("Average Success Score by K-Means Cluster", fontsize=11, color="#555555", style="italic")
     ax.axhline(0, color="black", linewidth=1.2, linestyle="--", alpha=0.4)
 
+    # FIX: Dynamically expand the y-axis limits to prevent text clipping
+    y_min, y_max = ax.get_ylim()
+    ax.set_ylim(y_min - 0.15, y_max + 0.15) 
+
     for bar in bars:
         yval = bar.get_height()
-        offset = 0.05 if yval > 0 else -0.1
+        # Adjust offset slightly closer to the bar now that we have axis padding
+        offset = 0.04 if yval > 0 else -0.04
         ax.text(bar.get_x() + bar.get_width()/2, yval + offset, f"{yval:+.2f}",
                 ha='center', va='bottom' if yval > 0 else 'top', fontweight='bold', fontsize=10)
 
