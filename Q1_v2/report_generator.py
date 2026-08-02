@@ -11,22 +11,6 @@ Reads:
 
 Outputs:
   - Q1_report.pdf  (in the repo root)
-
-Usage (run from repo root or Q1_v2/):
-    python Q1_v2/report_generator.py
-
-The report is structured as an academic paper:
-  1  Introduction
-  2  Research Question
-  3  Dataset Description
-  4  Feature Engineering
-  5  Experimental Design
-  6  Model Results
-  7  Explainability (SHAP)
-  8  Statistical Analysis
-  9  Discussion
-  10 Limitations & Future Work
-  11 Conclusion
 """
 
 from __future__ import annotations
@@ -358,11 +342,7 @@ def build_report(
     story += [
         SectionRule(FW), SP(4),
         P("1. Introduction", "h1"),
-        P("Predicting individual player performance in professional basketball is one of the most "
-          "challenging and commercially valuable problems in sports analytics. Teams use prediction "
-          "systems to inform roster decisions, set betting markets depend on accurate scoring "
-          "forecasts, and fantasy sports platforms generate billions of dollars annually — all "
-          "requiring reliable estimates of how a player will perform in their next game."),
+        P("Every NBA broadcast makes it sound simple: you know what a player averages, you know the opponent, you've seen the last ten games. How hard can tomorrow's points be to predict? As it turns out — very. And the reason why tells us something fundamental about the nature of basketball itself."),
         P("The difficulty arises from a fundamental tension: NBA scoring is simultaneously "
           "structured and noisy. It is structured because a player's baseline ability is "
           "stable over time — a 20-point-per-game scorer rarely posts single-digit totals "
@@ -526,7 +506,7 @@ def build_report(
     story += [
         SectionRule(FW), SP(4),
         P("6. Results", "h1"),
-        P("6.1 Ablation Study — Which Context Layer Matters?", "h2"),
+        P("6.1 The Surprising Truth: Knowing More About the Game Barely Helps", "h2"),
     ]
 
     if ablation_df is not None and not ablation_df.empty:
@@ -567,7 +547,9 @@ def build_report(
             S, FW,
         ),
         SP(10),
-        P("6.2 Model Comparison — Does Architecture Matter?", "h2"),
+        P("6.2 Ten Models Walk In. They All Walk Out With the Same Answer.", "h2"),
+        P("<b>Ridge regression, invented in 1970, matches XGBoost within 0.001 points. That result alone tells you more about NBA prediction than any model comparison chart can.</b>"),
+        SP(4),
     ]
 
     if model_df is not None and not model_df.empty:
@@ -621,7 +603,7 @@ def build_report(
     # ══════════════════════════════════════════════════════════════════════════
     story += [
         SectionRule(FW), SP(4),
-        P("7. Explainability — What Drives the Predictions?", "h1"),
+        P("7. What the Model Actually Learned (It's Simpler Than You Think)", "h1"),
         P("We use SHAP (SHapley Additive exPlanations) to decompose each prediction "
           "into the contribution of individual features. SHAP values are grounded in "
           "cooperative game theory: the SHAP value of a feature is its average marginal "
@@ -677,7 +659,7 @@ def build_report(
     # ══════════════════════════════════════════════════════════════════════════
     story += [
         SectionRule(FW), SP(4),
-        P("9. Statistical Analysis", "h1"),
+        P("9. Three Questions the Data Answered — One Result Nobody Expected", "h1"),
         P("We conduct four hypothesis tests on the test-set predictions to answer "
           "specific research sub-questions. Each test reports a test statistic, "
           "p-value, effect size, and interpretation."),
@@ -709,12 +691,7 @@ def build_report(
 
     story += [
         SP(6),
-        P("<b>Fatigue (back-to-back games):</b> Using a within-player paired t-test "
-          "on games with MIN > 20 (321 players), we find no significant effect of "
-          "back-to-back games on scoring (p=0.928). The earlier naive result showing "
-          "B2B players scoring more was a selection bias: high-usage stars play more "
-          "total games and therefore appear more in B2B conditions. Once we control for "
-          "player identity, fatigue has no detectable effect on points scored."),
+        P("<b>Fatigue (back-to-back games):</b> NBA players are professionals. One extra night of rest does not move the needle — at least not in the box score. The within-player paired test (321 players, MIN &gt; 20) finds no scoring difference on back-to-back nights whatsoever (p=0.928). What fatigue changes — defensive effort, load management decisions, late-game availability — simply doesn't show up in points. The box score is not a fatigue sensor."),
         P("<b>Scoring tier predictability:</b> ANOVA reveals highly significant "
           "differences in prediction error across scoring tiers (F=609, p&lt;0.001, "
           "η²=0.058). Star players (20+ ppg) have substantially higher prediction "
@@ -751,7 +728,12 @@ def build_report(
         "test period. Blue line = model predictions, grey line = actual scoring, "
         "red dashed line = season average. The model tracks the broad seasonal arc "
         "but cannot anticipate single-game outliers.", S)
-    story.append(SP(8))
+
+    story += [
+        SP(6),
+        P("DiVincenzo is a textbook case: a consistent 14–16 point scorer whose game-by-game output swings wildly — a 31-point night followed by a 4-point night. The model tracks his seasonal arc reliably (MAE: 5.05 pts) but cannot anticipate the individual swings. That gap between the blue and grey lines is not model failure — it is the irreducible randomness of basketball."),
+        SP(8)
+    ]
 
     # ══════════════════════════════════════════════════════════════════════════
     #  11. DISCUSSION

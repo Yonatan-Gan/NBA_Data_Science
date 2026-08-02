@@ -706,5 +706,11 @@ def fig08_rolling_prediction_examples(
         ax.yaxis.grid(True, zorder=0, alpha=0.5)
         ax.spines["left"].set_visible(False)
 
+    _takeaway(fig,
+              "Key takeaway: The model successfully captures the broad seasonal arc "
+              "and baseline scoring level for each player, but cannot anticipate "
+              "extreme game-to-game swings. The gap between the blue and grey lines "
+              "represents the irreducible randomness of basketball.")
+
     fig.tight_layout()
     return _save(fig, "Q1_fig08_rolling_predictions")
