@@ -118,7 +118,7 @@ def train_and_plot_model(df):
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.barplot(data=importance_df, x="Importance", y="Trait", palette="mako", edgecolor="white", ax=ax)
     
-    ax.set_title("Which Structural Traits Predict High Team Chemistry?", fontsize=13, fontweight="bold", pad=15)
+    ax.set_title("Which Structural Traits Predict Team Overperformance?", fontsize=13, fontweight="bold", pad=15)
     ax.set_xlabel("Random Forest Feature Weight (Importance)", fontsize=11)
     ax.set_ylabel("")
     
