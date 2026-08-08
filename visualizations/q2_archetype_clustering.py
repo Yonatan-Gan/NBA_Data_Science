@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Q2 Deep Dive - Unsupervised Learning (Team Archetypes)
 ======================================================
@@ -178,7 +177,6 @@ def build_success_by_archetype(df):
     ax.set_title("Average Success Score by K-Means Cluster", fontsize=11, color="#555555", style="italic")
     ax.axhline(0, color="black", linewidth=1.2, linestyle="--", alpha=0.4)
 
-    # FIX: Dynamically expand the y-axis limits to prevent text clipping
     y_min, y_max = ax.get_ylim()
     ax.set_ylim(y_min - 0.15, y_max + 0.15) 
 

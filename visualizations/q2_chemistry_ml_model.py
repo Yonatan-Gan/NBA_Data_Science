@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Q2 ML Pipeline - Predicting the "Chemistry Delta"
 ======================================================
@@ -101,14 +100,14 @@ def train_and_plot_model(df):
     # Extract and format feature importances
     importances = rf_model.feature_importances_
     feature_names = [
-        "Average Age (Maturity)", 
-        "Age Variance (Barbell Strategy)", 
-        "Usage Variance (Hierarchy)", 
-        "Intl % (Cultural Diversity)", 
-        "AST% (Democratic Ball Movement)", 
+        "Average Age (Maturity)",
+        "Age Variance (Barbell Strategy)",
+        "Usage Variance (Hierarchy)",
+        "Intl % (Cultural Diversity)",
+        "AST% (Democratic Ball Movement)",
         "Pace (Tempo)"
     ]
-    
+
     importance_df = pd.DataFrame({
         "Trait": feature_names,
         "Importance": importances

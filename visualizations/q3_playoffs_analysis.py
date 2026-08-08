@@ -60,7 +60,7 @@ df = q3.dropna(subset=["REG_PTS", "POF_PTS"]).copy()
 df = df[(df["REG_G"] >= 20) & (df["POF_G"] >= 5)].copy()
 df = df.reset_index(drop=True)
 
-# Compute turnover delta (not pre-computed in source)
+# Compute turnover delta
 df["DELTA_TOV"] = df["POF_TOV"] - df["REG_TOV"]
 
 # Normalize each component to z-scores so they are on the same scale

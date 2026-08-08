@@ -9,8 +9,6 @@ Statistical tests that answer the research sub-questions:
   Q: Does prediction error differ by position?
   Q: Is the improvement from each feature group statistically significant?
 
-All tests report: test statistic, p-value, effect size (Cohen's d), and
-95% bootstrap confidence interval for the effect.
 """
 
 from __future__ import annotations

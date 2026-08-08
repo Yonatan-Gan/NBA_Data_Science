@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Q2 Finale - Cultural Synergy & Chemistry
 ======================================================
@@ -38,8 +37,6 @@ def load_local_data():
 
     # Load from the existing bio file you pointed out
     bio_df = pd.read_csv(BIO_FILE)
-    
-    # Standard NBA API bio files use PERSON_ID, but we'll check for PLAYER_ID just in case
     id_col = "PERSON_ID" if "PERSON_ID" in bio_df.columns else "PLAYER_ID"
     origins_dict = dict(zip(bio_df[id_col], bio_df["COUNTRY"]))
     
@@ -103,8 +100,6 @@ def main():
     fig.savefig(os.path.join(FIG, "q2_fig6_diversity_vs_passing.png"), dpi=150)
     plt.close()
 
-    # Fig 7
-    # Fig 7
     # 1. UPDATE THE LABELS HERE:
     df["DIVERSITY_TIER"] = pd.qcut(df["INTL_PCT"], 3, labels=[
         "Low\n(<10% International)", 
@@ -114,12 +109,12 @@ def main():
     
     fig, ax = plt.subplots(figsize=(9, 6))
     
-    # 2. UPDATE THE PALETTE TO MATCH YOUR REPORT COLORS:
+    # 2. UPDATE THE PALETTE TO MATCH THE REPORT COLORS:
     sns.barplot(
         data=df, 
         x="DIVERSITY_TIER", 
         y="COMPOSITE_SCORE", 
-        palette=["#43537a", "#2f8278", "#6cba6e"], # Replaces "viridis"
+        palette=["#43537a", "#2f8278", "#6cba6e"],
         edgecolor="white", 
         errorbar=None, 
         ax=ax

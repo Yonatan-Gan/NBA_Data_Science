@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Line chart: average NBA team score per game, by season (2003-2022).
 Output: figures/team_scoring_trend.png
