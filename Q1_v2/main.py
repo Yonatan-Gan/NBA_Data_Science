@@ -52,13 +52,10 @@ from feature_engineering import FeatureEngineer
 from experiments       import ExperimentRunner
 from statistics        import StatisticalAnalyzer
 from visualization     import (
-    fig01_ablation,
     fig02_model_comparison,
     fig03_actual_vs_predicted,
     fig04_shap_summary,
-    fig05_context_effects,
     fig06_error_by_subgroup,
-    fig07_statistical_tests,
     fig08_rolling_prediction_examples,
 )
 
@@ -132,6 +129,9 @@ def main() -> None:
     # Best model and its predictions for downstream figures
     best = min(model_results, key=lambda r: r.mae)
     logger.info(f"\n  Best model: {best.model_name}  MAE={best.mae:.3f}  R²={best.r2:.3f}")
+    np.savez(cfg.RESULTS_DIR / "best_predictions.npz",
+             actuals=best.actuals,
+             predictions=best.predictions)
 
     # ══════════════════════════════════════════════════════════════════════════
     #  STEP 5: STATISTICAL TESTS
@@ -147,7 +147,6 @@ def main() -> None:
     # ══════════════════════════════════════════════════════════════════════════
     logger.info("\n[6/6] Generating figures...")
 
-    fig01_ablation(ablation_results)
     fig02_model_comparison(model_results)
     fig03_actual_vs_predicted(
         best.actuals, best.predictions,
@@ -181,9 +180,7 @@ def main() -> None:
             f"  SHAP skipped: {best.model_name} not in supported set or model_object is None"
         )
 
-    fig05_context_effects(runner.df_test, best.predictions)
     fig06_error_by_subgroup(runner.df_test, best.predictions)
-    fig07_statistical_tests(stats_df)
     fig08_rolling_prediction_examples(runner.df_test, best.predictions)
 
     # ══════════════════════════════════════════════════════════════════════════

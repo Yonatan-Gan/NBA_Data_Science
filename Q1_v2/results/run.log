@@ -1,114 +1,111 @@
-12:32:48  INFO      ============================================================
-12:32:48  INFO        Q1 — Predicting NBA Player Next-Game Performance
-12:32:48  INFO        Understanding and Predicting NBA Player Performance
-12:32:48  INFO        Using Context-Aware Machine Learning
-12:32:48  INFO      ============================================================
-12:32:48  INFO      
+15:03:28  INFO      ============================================================
+15:03:28  INFO        Q1 — Predicting NBA Player Next-Game Performance
+15:03:28  INFO        Understanding and Predicting NBA Player Performance
+15:03:28  INFO        Using Context-Aware Machine Learning
+15:03:28  INFO      ============================================================
+15:03:28  INFO      
 [1/6] Loading data...
-12:32:48  INFO      ============================================================
-12:32:48  INFO        NBADataLoader — loading all sources
-12:32:48  INFO      ============================================================
-12:32:48  INFO      Game logs: 150,087 rows from 6 files
-12:32:48  INFO      Team game logs: 14,118 rows
-12:32:48  INFO      Player bio: 530 rows
-12:32:48  INFO      Career stats: 4,914 rows
-12:32:48  WARNING   Kaggle advanced stats (Seasons_Stats.csv) not found
-12:32:48  INFO      Salaries: 15,857 rows from player_salaries.csv
-12:32:49  INFO      BRef advanced: 5,438 rows from 186 files
-12:32:49  INFO      BRef per_game: 5,438 rows from 186 files
-12:32:49  INFO      
+15:03:28  INFO      ============================================================
+15:03:28  INFO        NBADataLoader — loading all sources
+15:03:28  INFO      ============================================================
+15:03:28  INFO      Game logs: 150,087 rows from 6 files
+15:03:28  INFO      Team game logs: 14,118 rows
+15:03:28  INFO      Player bio: 530 rows
+15:03:28  INFO      Career stats: 4,914 rows
+15:03:28  WARNING   Kaggle advanced stats (Seasons_Stats.csv) not found
+15:03:28  INFO      Salaries: 15,857 rows from player_salaries.csv
+15:03:29  INFO      BRef advanced: 5,438 rows from 186 files
+15:03:29  INFO      BRef per_game: 5,438 rows from 186 files
+15:03:29  INFO      
 [2/6] Preprocessing...
-12:32:49  INFO      Preprocessing: 150,087 raw rows
-12:32:49  INFO        Dropped 80 DNP rows (MIN=0 or NaN)
-12:32:49  INFO        Kept 910 players with ≥10 games (691 rows removed)
-12:32:49  INFO        Clean result: 149,316 rows, 910 players, 6 seasons
-12:32:49  INFO      
+15:03:29  INFO      Preprocessing: 150,087 raw rows
+15:03:29  INFO        Dropped 80 DNP rows (MIN=0 or NaN)
+15:03:29  INFO        Kept 910 players with ≥10 games (691 rows removed)
+15:03:29  INFO        Clean result: 149,316 rows, 910 players, 6 seasons
+15:03:29  INFO      
 [3/6] Feature engineering...
-12:33:02  INFO        ✓ player_form features built
-12:33:13  INFO        ✓ schedule features built
-12:33:13  WARNING     OPP_DEF_RATING not available from any source — using league average 112.0. Ensure OPP_TEAM_ID exists in player logs and team_gamelogs are loaded.
-12:33:13  INFO        ✓ opponent features built
-12:33:13  INFO        ✓ team_context features built
-12:33:13  INFO        ✓ career features built
-12:33:13  INFO        Feature engineering complete: ~129 new columns built
-12:33:13  INFO        Final modelling dataset: 149,316 rows, 910 players
-12:33:13  INFO      
+15:03:42  INFO        ✓ player_form features built
+15:03:54  INFO        ✓ schedule features built
+15:03:54  WARNING     OPP_DEF_RATING not available from any source — using league average 112.0. Ensure OPP_TEAM_ID exists in player logs and team_gamelogs are loaded.
+15:03:54  INFO        ✓ opponent features built
+15:03:54  INFO        ✓ team_context features built
+15:03:54  INFO        ✓ career features built
+15:03:54  INFO        Feature engineering complete: ~129 new columns built
+15:03:54  INFO        Final modelling dataset: 149,316 rows, 910 players
+15:03:54  INFO      
 [4/6] Running experiments...
-12:33:14  INFO      Split: 119,452 train, 29,864 test
-12:33:14  INFO      
+15:03:54  INFO      Split: 119,452 train, 29,864 test
+15:03:54  INFO      
 ────────────────────────────────────────────────────────────
-12:33:14  INFO        ABLATION STUDY (XGBoost, varying feature groups)
-12:33:14  INFO      ────────────────────────────────────────────────────────────
-12:33:15  INFO        EXP1_baseline                       | XGBoost            | MAE=4.622  RMSE=6.035  R²=0.531  [1.7s train]
-12:33:17  INFO        EXP2_schedule                       | XGBoost            | MAE=4.612  RMSE=6.025  R²=0.532  [1.8s train]
-12:33:19  INFO        EXP3_opponent                       | XGBoost            | MAE=4.614  RMSE=6.028  R²=0.532  [1.9s train]
-12:33:21  INFO        EXP4_team                           | XGBoost            | MAE=4.612  RMSE=6.025  R²=0.532  [2.0s train]
-12:33:23  INFO        EXP5_career                         | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
-12:33:25  INFO        EXP6_all                            | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
-12:33:25  INFO      
+15:03:54  INFO        ABLATION STUDY (XGBoost, varying feature groups)
+15:03:54  INFO      ────────────────────────────────────────────────────────────
+15:03:55  INFO        EXP1_baseline                       | XGBoost            | MAE=4.622  RMSE=6.035  R²=0.531  [1.6s train]
+15:03:57  INFO        EXP2_schedule                       | XGBoost            | MAE=4.612  RMSE=6.025  R²=0.532  [1.8s train]
+15:03:59  INFO        EXP3_opponent                       | XGBoost            | MAE=4.614  RMSE=6.028  R²=0.532  [1.9s train]
+15:04:01  INFO        EXP4_team                           | XGBoost            | MAE=4.612  RMSE=6.025  R²=0.532  [2.0s train]
+15:04:03  INFO        EXP5_career                         | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
+15:04:06  INFO        EXP6_all                            | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
+15:04:06  INFO      
 ────────────────────────────────────────────────────────────
-12:33:25  INFO        MODEL COMPARISON (all features)
-12:33:25  INFO      ────────────────────────────────────────────────────────────
-12:33:25  INFO        model_naive_baseline                | Naive Baseline     | MAE=7.047  RMSE=8.808  R²=-0.000  [0.0s train]
-12:33:25  INFO        model_ridge                         | Ridge              | MAE=4.577  RMSE=6.000  R²=0.536  [0.1s train]
-12:33:26  INFO        model_lasso                         | Lasso              | MAE=4.626  RMSE=6.022  R²=0.533  [0.2s train]
-12:33:26  INFO        model_elasticnet                    | ElasticNet         | MAE=4.606  RMSE=6.016  R²=0.533  [0.2s train]
-12:34:01  INFO        model_random_forest                 | Random Forest      | MAE=4.614  RMSE=6.010  R²=0.534  [34.6s train]
-12:34:10  INFO        model_extra_trees                   | Extra Trees        | MAE=4.610  RMSE=6.004  R²=0.535  [9.6s train]
-12:36:08  INFO        model_gradient_boosting             | Gradient Boosting  | MAE=4.577  RMSE=5.994  R²=0.537  [117.1s train]
-12:36:10  INFO        model_xgboost                       | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
-12:36:16  INFO        model_lightgbm                      | LightGBM           | MAE=4.590  RMSE=6.015  R²=0.534  [6.1s train]
-12:36:19  INFO        model_catboost                      | CatBoost           | MAE=4.540  RMSE=6.049  R²=0.528  [3.1s train]
-12:36:19  INFO      
+15:04:06  INFO        MODEL COMPARISON (all features)
+15:04:06  INFO      ────────────────────────────────────────────────────────────
+15:04:06  INFO        model_naive_baseline                | Naive Baseline     | MAE=7.047  RMSE=8.808  R²=-0.000  [0.0s train]
+15:04:06  INFO        model_ridge                         | Ridge              | MAE=4.577  RMSE=6.000  R²=0.536  [0.0s train]
+15:04:06  INFO        model_lasso                         | Lasso              | MAE=4.626  RMSE=6.022  R²=0.533  [0.2s train]
+15:04:06  INFO        model_elasticnet                    | ElasticNet         | MAE=4.606  RMSE=6.016  R²=0.533  [0.2s train]
+15:04:41  INFO        model_random_forest                 | Random Forest      | MAE=4.614  RMSE=6.010  R²=0.534  [34.7s train]
+15:04:51  INFO        model_extra_trees                   | Extra Trees        | MAE=4.610  RMSE=6.004  R²=0.535  [9.7s train]
+15:06:47  INFO        model_gradient_boosting             | Gradient Boosting  | MAE=4.577  RMSE=5.994  R²=0.537  [115.8s train]
+15:06:49  INFO        model_xgboost                       | XGBoost            | MAE=4.576  RMSE=5.998  R²=0.536  [2.1s train]
+15:06:55  INFO        model_lightgbm                      | LightGBM           | MAE=4.590  RMSE=6.015  R²=0.534  [6.3s train]
+15:06:59  INFO        model_catboost                      | CatBoost           | MAE=4.540  RMSE=6.049  R²=0.528  [3.4s train]
+15:06:59  INFO      
   Ablation results:
    experiment   model  n_features   mae  rmse    r2  train_time_s
-EXP1_baseline XGBoost          21 4.622 6.035 0.531           1.7
+EXP1_baseline XGBoost          21 4.622 6.035 0.531           1.6
 EXP2_schedule XGBoost          28 4.612 6.025 0.532           1.8
 EXP3_opponent XGBoost          33 4.614 6.028 0.532           1.9
     EXP4_team XGBoost          38 4.612 6.025 0.532           2.0
   EXP5_career XGBoost          43 4.576 5.998 0.536           2.1
      EXP6_all XGBoost          43 4.576 5.998 0.536           2.1
-12:36:19  INFO      
+15:06:59  INFO      
   Model comparison:
              experiment             model  n_features   mae  rmse     r2  train_time_s
    model_naive_baseline    Naive Baseline          43 7.047 8.808 -0.000           0.0
-            model_ridge             Ridge          43 4.577 6.000  0.536           0.1
+            model_ridge             Ridge          43 4.577 6.000  0.536           0.0
             model_lasso             Lasso          43 4.626 6.022  0.533           0.2
        model_elasticnet        ElasticNet          43 4.606 6.016  0.533           0.2
-    model_random_forest     Random Forest          43 4.614 6.010  0.534          34.6
-      model_extra_trees       Extra Trees          43 4.610 6.004  0.535           9.6
-model_gradient_boosting Gradient Boosting          43 4.577 5.994  0.537         117.1
+    model_random_forest     Random Forest          43 4.614 6.010  0.534          34.7
+      model_extra_trees       Extra Trees          43 4.610 6.004  0.535           9.7
+model_gradient_boosting Gradient Boosting          43 4.577 5.994  0.537         115.8
           model_xgboost           XGBoost          43 4.576 5.998  0.536           2.1
-         model_lightgbm          LightGBM          43 4.590 6.015  0.534           6.1
-         model_catboost          CatBoost          43 4.540 6.049  0.528           3.1
-12:36:19  INFO      
+         model_lightgbm          LightGBM          43 4.590 6.015  0.534           6.3
+         model_catboost          CatBoost          43 4.540 6.049  0.528           3.4
+15:06:59  INFO      
   Best model: CatBoost  MAE=4.540  R²=0.528
-12:36:19  INFO      
+15:06:59  INFO      
 [5/6] Statistical analysis...
-12:36:19  INFO        Fatigue test: t=0.09, p=0.9276, d=0.005 — Within-player analysis (321 players, MIN>20): B2B games does not reduce (or slightly increases) scoring by 0.01 pts on average (mean diff=+0.01, CI=[-5.64,5.67], not significant at α=0.05). Test: paired t (within-player).
-12:36:19  INFO        Scoring tier test: ANOVA F=609.23, p=0.0000, η²=0.058. Error differs significantly across scoring tiers.
-12:36:20  INFO        Home/away test: Home game MAE=4.57 vs Away MAE=4.51 (not significant)
-12:36:20  INFO      
+15:06:59  INFO        Fatigue test: t=0.09, p=0.9276, d=0.005 — Within-player analysis (321 players, MIN>20): B2B games does not reduce (or slightly increases) scoring by 0.01 pts on average (mean diff=+0.01, CI=[-5.64,5.67], not significant at α=0.05). Test: paired t (within-player).
+15:06:59  INFO        Scoring tier test: ANOVA F=609.23, p=0.0000, η²=0.058. Error differs significantly across scoring tiers.
+15:06:59  INFO        Home/away test: Home game MAE=4.57 vs Away MAE=4.51 (not significant)
+15:06:59  INFO      
   Statistical tests:
                                                          Question p-value Significant
 Does back-to-back fatigue reduce scoring? (MIN>20, within-player)  0.9276           ✗
                    Are stars harder to predict than role players?  0.0000           ✓
                                 Are home games easier to predict?  0.2671           ✗
-12:36:20  INFO      
+15:06:59  INFO      
 [6/6] Generating figures...
-12:36:20  INFO        ✓  Q1_fig01_ablation.png
-12:36:20  INFO        ✓  Q1_fig02_model_comparison.png
-12:36:20  INFO        ✓  Q1_fig03_actual_vs_predicted.png
-12:36:23  INFO        ✓  Q1_fig04_shap_summary.png
-12:36:23  INFO        ✓  SHAP figure generated
-12:36:23  INFO        ✓  Q1_fig05_context_effects.png
-12:36:23  INFO        ✓  Q1_fig06_error_by_subgroup.png
-12:36:24  INFO        ✓  Q1_fig07_statistical_tests.png
-12:36:24  INFO        ✓  Q1_fig08_rolling_predictions.png
-12:36:24  INFO      
+15:07:00  INFO        ✓  Q1_fig02_model_comparison.png
+15:07:00  INFO        ✓  Q1_fig03_actual_vs_predicted.png
+15:07:01  INFO        ✓  Q1_fig04_shap_summary.png
+15:07:01  INFO        ✓  SHAP figure generated
+15:07:01  INFO        ✓  Q1_fig06_error_by_subgroup.png
+15:07:01  INFO        ✓  Q1_fig08_rolling_predictions.png
+15:07:01  INFO      
 ============================================================
-12:36:24  INFO        ✅  Pipeline complete in 216.3s
-12:36:24  INFO        Figures  → /Users/yonagan/Desktop/Year2/nand2tetris/projects/07/NBA_Data_Science/figures/Q1/
-12:36:24  INFO        Results  → /Users/yonagan/Desktop/Year2/nand2tetris/projects/07/NBA_Data_Science/Q1_v2/results/
-12:36:24  INFO      ============================================================
+15:07:01  INFO        ✅  Pipeline complete in 213.6s
+15:07:01  INFO        Figures  → /Users/yonagan/Desktop/Year2/nand2tetris/projects/07/NBA_Data_Science/figures/Q1/
+15:07:01  INFO        Results  → /Users/yonagan/Desktop/Year2/nand2tetris/projects/07/NBA_Data_Science/Q1_v2/results/
+15:07:01  INFO      ============================================================
 
