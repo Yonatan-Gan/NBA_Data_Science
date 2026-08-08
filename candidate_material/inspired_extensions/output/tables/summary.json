@@ -1,0 +1,36 @@
+{
+  "q1": {
+    "train_seasons": [
+      "2019-20",
+      "2020-21",
+      "2021-22",
+      "2022-23"
+    ],
+    "calibration_season": "2023-24",
+    "test_season": "2024-25",
+    "n_calibration_games": 21022,
+    "n_test_games": 20914,
+    "test_mae": 4.704532555687279,
+    "global_80_half_width": 7.254033971091538,
+    "global_80_coverage": 0.7960218035765516
+  },
+  "q2": {
+    "n_team_seasons": 150,
+    "n_teams": 30,
+    "raw_effect_per_10pp": 1.3888396043324733,
+    "full_effect_per_10pp": 0.2036657952727378,
+    "full_ci95_low": -0.32097328464660735,
+    "full_ci95_high": 0.7283048751920829,
+    "full_p_value": 0.43366686812586686,
+    "percent_shrink": 85.33554237383467
+  },
+  "q3": {
+    "n_player_seasons": 3355,
+    "n_players": 1044,
+    "mean_net_change": -0.9294465042128617,
+    "net_ci95_low": -1.0595509739556899,
+    "net_ci95_high": -0.8027785552816475,
+    "mean_minutes_effect": -0.09376950551403025,
+    "mean_scoring_rate_effect": -0.8356769986988315
+  }
+}
