@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Dumbbell plot of the top 10 playoff risers and top 10 playoff decliners.
 Each row shows a player's regular-season scoring average → playoff scoring
@@ -53,8 +52,8 @@ fig, ax = plt.subplots(figsize=(14, 12))
 
 # Stack: decliners first (bottom 10), then divider gap, then risers (top 10)
 # Within each block, biggest swing is FARTHEST from center (most dramatic at the edges).
-risers_sorted    = risers.sort_values("DELTA_PTS", ascending=True)   # biggest riser at the TOP
-decliners_sorted = decliners.sort_values("DELTA_PTS", ascending=False)  # biggest decliner at the BOTTOM
+risers_sorted    = risers.sort_values("DELTA_PTS", ascending=True)   # biggest riser at the top
+decliners_sorted = decliners.sort_values("DELTA_PTS", ascending=False)  # biggest decliner at the bottom
 
 y_decliners = list(range(0, len(decliners_sorted)))
 y_risers    = list(range(len(decliners_sorted) + 3,
@@ -63,7 +62,7 @@ y_risers    = list(range(len(decliners_sorted) + 3,
 def _draw(rows, ys, color):
     for y, (_, r) in zip(ys, rows.iterrows()):
         reg, pof = r["REG_PTS"], r["POF_PTS"]
-        # connector line (with arrowhead)
+        # connector line
         ax.annotate(
             "", xy=(pof, y), xytext=(reg, y),
             arrowprops=dict(arrowstyle="->", color=color, lw=2.5,
@@ -122,7 +121,7 @@ ax.grid(axis="x", color="#ecf0f1", linewidth=0.8, zorder=0)
 ax.set_axisbelow(True)
 ax.set_ylim(-1, max(y_risers) + 1.5)
 
-# Title and subtitle (positioned with figure-level text so they have room)
+# Title and subtitle
 fig.suptitle("Playoff Performance Shift",
              fontsize=18, fontweight="bold", y=0.97)
 fig.text(0.5, 0.935,

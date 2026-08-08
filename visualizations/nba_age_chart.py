@@ -1,21 +1,5 @@
 """
 NBA Age Distribution Chart
-===========================
-Reads player_profiles/player_bio_info.csv and produces a polished
-publication-style PDF bar chart of active NBA player ages.
-
-  - Bold title + italic subtitle (matching reference style)
-  - Every bar labelled with its count
-  - Red vertical line marking the average age
-  - Green annotation naming the oldest outlier (age 39+)
-  - Light blue area fill under bars
-
-Usage:
-    pip install pandas matplotlib reportlab
-    python nba_age_chart.py
-
-Output:
-    nba_age_distribution.pdf
 """
 
 import io, os, sys, warnings
@@ -134,7 +118,7 @@ fig, ax = plt.subplots(figsize=(15, 7))
 fig.patch.set_facecolor("white")
 ax.set_facecolor("white")
 
-# Bar colours — blue gradient based on height, matching reference image style
+# Bar colours — blue gradient based on height
 bar_colors = []
 for c in counts:
     t = c / peak_count
@@ -152,7 +136,7 @@ for age, count in zip(ages, counts):
                 ha="center", va="bottom",
                 fontsize=9.5, color="#1565C0", fontweight="bold")
 
-# ── AVERAGE AGE LINE (red, like reference's red annotation) ───────────────
+# ── AVERAGE AGE LINE  ───────────────
 ax.axvline(avg_age, color="#E53935", linewidth=2.2,
            linestyle="-", zorder=5, alpha=0.9)
 
@@ -167,7 +151,7 @@ ax.text(avg_age + label_x_offset,
         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#E53935",
                   lw=1, alpha=0.85))
 
-# ── OUTLIER ANNOTATION (green, like reference's event annotations) ─────────
+# ── OUTLIER ANNOTATION ─────────
 if outlier_age in age_counts.index:
     outlier_count = int(age_counts[outlier_age])
     # Decide arrow direction based on whether outlier is left or right of center
@@ -212,13 +196,12 @@ ax.tick_params(axis="x", length=3, colors="#888888")
 ax.yaxis.grid(True, color="#e8e8e8", linewidth=0.9, zorder=0)
 ax.set_axisbelow(True)
 
-# Remove all spines except bottom (matching reference)
+# Remove all spines except bottom
 for spine in ["top", "right", "left"]:
     ax.spines[spine].set_visible(False)
 ax.spines["bottom"].set_color("#cccccc")
 ax.spines["bottom"].set_linewidth(0.8)
 
-# Y-axis: start at 0, add a bit of headroom
 ax.set_ylim(0, peak_count * 1.22)
 
 fig.tight_layout(pad=1.5)
@@ -236,7 +219,7 @@ print("  Building PDF...")
 story = []
 
 # chart image — fill the content width
-chart_h_cm = CONTENT_W / cm * (7 / 15)   # preserve aspect ratio (15:7 figsize)
+chart_h_cm = CONTENT_W / cm * (7 / 15)
 story.append(RLImage(buf, width=CONTENT_W, height=chart_h_cm * cm))
 
 story.append(Spacer(1, 0.35 * cm))

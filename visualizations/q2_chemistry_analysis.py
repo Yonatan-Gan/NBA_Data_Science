@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Q2 - Team Chemistry and Success
 ===============================
@@ -31,7 +30,6 @@ ROSTERS_DIR = os.path.join(API_PROC, "rosters")
 FIG = os.path.join(BASE, "figures")
 os.makedirs(FIG, exist_ok=True)
 
-# Adopt the Q3 color palette and style
 HIGH_SUCCESS_COL = "#27ae60"  # Riser green
 NEUTRAL_COL      = "#7f8c8d"  # Neutral gray
 LOW_SUCCESS_COL  = "#c0392b"  # Decliner red
@@ -165,7 +163,6 @@ handles = [
         mpatches.Patch(facecolor=LOW_SUCCESS_COL, alpha=0.7, label="Bottom 33% of Teams")
     ]
     
-    # --- UPDATED LEGEND CODE ---
 ax.legend(
     handles=handles, 
     loc="upper left",          # The anchor point of the legend box
