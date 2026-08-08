@@ -7,16 +7,11 @@ All figures for the Q1 report.  Every function:
   - uses the shared STYLE config so all figures are visually consistent
 
 Figure catalogue:
-  fig01  Ablation study — MAE improvement per feature group
   fig02  Model comparison bar chart (MAE + R²)
   fig03  Actual vs Predicted scatter (best model)
-  fig04  Prediction error distribution
-  fig05  SHAP summary beeswarm + global importance
-  fig06  SHAP dependence plots for top 4 features
-  fig07  Context effects (rest days, home/away, opponent strength)
-  fig08  Error by scoring tier and position
-  fig09  Statistical test summary (forest plot)
-  fig10  Rolling prediction example for 3 individual players
+  fig04  SHAP global importance
+  fig06  Error by scoring tier and position
+  fig08  Rolling prediction example for 3 individual players
 """
 
 from __future__ import annotations
@@ -27,8 +22,6 @@ from typing import Optional
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -78,69 +71,6 @@ def _takeaway(fig: plt.Figure, text: str, y: float = -0.04) -> None:
                   ec=C["green"], lw=1.2),
         wrap=True,
     )
-
-
-# ── Figure 1: Ablation study ──────────────────────────────────────────────────
-
-def fig01_ablation(ablation_results: list) -> Path:
-    """
-    Horizontal bar chart showing how each feature group reduces MAE.
-    Groups are stacked from EXP1 (baseline) to EXP6 (all features).
-    """
-    names   = [r.experiment_name.replace("EXP", "Exp ").replace("_", " ") for r in ablation_results]
-    maes    = [r.mae    for r in ablation_results]
-    n_feats = [r.n_features for r in ablation_results]
-
-    baseline_mae = maes[0]
-    improvements = [baseline_mae - m for m in maes]
-
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    fig.suptitle(
-        "Q1 Analysis: How Much Does Each Context Layer Improve Predictions?\n"
-        "Feature Ablation Study (XGBoost, chronological split)",
-        fontsize=13, fontweight="bold", y=1.02,
-    )
-
-    # Left: absolute MAE
-    ax = axes[0]
-    colors = [C["grey"]] + [C["blue"]] * (len(maes) - 1)
-    bars = ax.barh(names, maes, color=colors, height=0.6, zorder=3)
-    for bar, mae in zip(bars, maes):
-        ax.text(mae + 0.02, bar.get_y() + bar.get_height()/2,
-                f"{mae:.2f}", va="center", fontsize=9.5, fontweight="bold")
-    ax.axvline(baseline_mae, color=C["red"], lw=1.5, linestyle="--", alpha=0.6,
-               label=f"Baseline MAE: {baseline_mae:.2f}")
-    ax.set_xlabel("Mean Absolute Error (points)", fontsize=11, labelpad=8)
-    ax.set_title("Prediction Error by Feature Set\n(lower = better)", fontsize=11)
-    ax.xaxis.grid(True, zorder=0)
-    ax.set_axisbelow(True)
-    ax.spines["bottom"].set_visible(False)
-    ax.legend(fontsize=9)
-
-    # Right: MAE improvement + n_features
-    ax = axes[1]
-    bar_colors = [C["light_blue"] if imp > 0 else C["grey"] for imp in improvements]
-    bars2 = ax.barh(names, improvements, color=bar_colors, height=0.6, zorder=3)
-    for bar, imp, nf in zip(bars2, improvements, n_feats):
-        pct = imp / baseline_mae * 100
-        ax.text(max(imp + 0.002, 0.002),
-                bar.get_y() + bar.get_height()/2,
-                f"−{imp:.2f} pts  ({pct:.1f}%)\n[{nf} features]",
-                va="center", fontsize=8.5, color=C["dark"])
-    ax.set_xlabel("MAE Reduction vs Baseline (points)", fontsize=11, labelpad=8)
-    ax.set_title("Improvement Over Baseline\n(further right = better)", fontsize=11)
-    ax.xaxis.grid(True, zorder=0)
-    ax.set_axisbelow(True)
-    ax.spines["bottom"].set_visible(False)
-
-    best = ablation_results[-1]
-    _takeaway(fig,
-              f"Key takeaway: Adding all context layers reduces prediction error from "
-              f"{baseline_mae:.2f} to {best.mae:.2f} pts — a "
-              f"{(baseline_mae-best.mae)/baseline_mae*100:.0f}% improvement. "
-              f"The largest single gain comes from opponent context.")
-    fig.tight_layout()
-    return _save(fig, "Q1_fig01_ablation")
 
 
 # ── Figure 2: Model comparison ────────────────────────────────────────────────
@@ -218,24 +148,36 @@ def fig03_actual_vs_predicted(
 
     # Left: hexbin scatter
     ax = axes[0]
-    lo, hi = 0, max(actuals.max(), predictions.max()) * 1.05
-    hb = ax.hexbin(actuals, predictions, gridsize=40, cmap="Blues",
-                   mincnt=1, alpha=0.85)
+    lo, hi = 0, 50  # Hardcoded max scale to ~50 pts for better visualization
+
+    # Explicitly filter data within bounds for clean hexbin rendering
+    mask = (actuals >= lo) & (actuals <= hi) & (predictions >= lo) & (predictions <= hi)
+    act_plot = actuals[mask]
+    pred_plot = predictions[mask]
+
+    hb = ax.hexbin(act_plot, pred_plot, gridsize=40, cmap="Blues",
+                   mincnt=1, alpha=0.85, extent=(lo, hi, lo, hi))
+
+    # Perfect prediction line
     ax.plot([lo, hi], [lo, hi], "--", color=C["red"], lw=2,
             label="Perfect prediction", zorder=5)
-    ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
+
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(lo, hi)
     ax.set_xlabel("Actual points scored", fontsize=11, labelpad=8)
     ax.set_ylabel("Predicted points", fontsize=11, labelpad=8)
     ax.set_title(f"MAE = {mae:.2f} pts  ·  R² = {r2:.3f}", fontsize=11, fontweight="bold")
-    ax.legend(fontsize=9)
+    ax.legend(fontsize=9, loc="upper left")
     ax.set_aspect("equal")
     fig.colorbar(hb, ax=ax, label="Game count")
+
 
     # Right: error distribution
     ax = axes[1]
     errors = predictions - actuals
     bins   = np.linspace(-35, 35, 70)
     ax.hist(errors, bins=bins, color=C["blue"], alpha=0.7, density=True, zorder=3)
+
 
     # Overlay normal fit
     mu, sigma = errors.mean(), errors.std()
@@ -273,56 +215,51 @@ def fig04_shap_summary(
     X_sample:      pd.DataFrame,
     feature_names: list[str],
 ) -> Path:
-    """SHAP beeswarm (left) + mean |SHAP| bar chart (right)."""
+    """SHAP global importance bar chart."""
     try:
         import shap as shap_lib
     except ImportError:
         logger.warning("shap not installed — skipping SHAP figure")
         return None
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
+    # Changed from 1x2 to 1x1 grid and adjusted width
+    fig, ax = plt.subplots(1, 1, figsize=(10, 7))
     fig.suptitle(
         "Q1 Analysis: What Drives NBA Scoring Predictions?\n"
         "SHAP Values — Impact of Each Feature on the Model's Output",
         fontsize=13, fontweight="bold", y=1.02,
     )
 
-    # Left: beeswarm
-    plt.sca(axes[0])
-    shap_lib.summary_plot(
-        shap_values, X_sample,
-        feature_names=feature_names,
-        plot_type="dot",
-        plot_size=None,
-        show=False,
-        max_display=min(15, len(feature_names)),
-    )
-    axes[0].set_title(
-        "Feature Impact on Individual Predictions\n"
-        "(colour = feature value: red=high, blue=low)",
-        fontsize=11, fontweight="bold",
-    )
-    axes[0].set_xlabel("SHAP value (impact on predicted points)", fontsize=10)
-
-    # Right: mean absolute SHAP
-    ax = axes[1]
     mean_abs = np.abs(shap_values).mean(axis=0)
-    order    = np.argsort(mean_abs)
-    feat_sorted = [feature_names[i] for i in order]
-    vals_sorted = mean_abs[order]
 
-    bar_colors = [C["blue"] if v > np.percentile(mean_abs, 60) else C["light_blue"]
+    # Filter out features with 0.00 importance
+    non_zero_idx = np.where(mean_abs >= 0.005)[0]
+    mean_abs_filtered = mean_abs[non_zero_idx]
+    feature_names_filtered = [feature_names[i] for i in non_zero_idx]
+
+    order = np.argsort(mean_abs_filtered)
+    feat_sorted = [feature_names_filtered[i] for i in order]
+    vals_sorted = mean_abs_filtered[order]
+
+    bar_colors = [C["blue"] if v > np.percentile(mean_abs_filtered, 60) else C["light_blue"]
                   for v in vals_sorted]
+
     bars = ax.barh(feat_sorted, vals_sorted, color=bar_colors, height=0.65, zorder=3)
+
     for bar, v in zip(bars, vals_sorted):
         ax.text(v + 0.01, bar.get_y() + bar.get_height()/2,
                 f"{v:.2f}", va="center", fontsize=8.5, color="#333")
 
-    top3 = [feature_names[i] for i in np.argsort(mean_abs)[::-1][:3]]
-    ax.text(0.97, 0.04,
-            f"Top 3 predictors:\n" + "\n".join(f"  {i+1}. {n}" for i, n in enumerate(top3)),
-            transform=ax.transAxes, ha="right", va="bottom", fontsize=9.5,
-            bbox=dict(boxstyle="round,pad=0.4", fc="#f0f7e6", ec=C["green"], lw=1))
+    # Guard in case fewer than 3 features remain
+    if len(feat_sorted) >= 3:
+        top3 = [feat_sorted[-1], feat_sorted[-2], feat_sorted[-3]]
+        ax.text(0.97, 0.04,
+                f"Top 3 predictors:\n" + "\n".join(f"  {i+1}. {n}" for i, n in enumerate(top3)),
+                transform=ax.transAxes, ha="right", va="bottom", fontsize=9.5,
+                bbox=dict(boxstyle="round,pad=0.4", fc="#f0f7e6", ec=C["green"], lw=1))
+        top1_name, top2_name = top3[0], top3[1]
+    else:
+        top1_name, top2_name = "Primary Feature", "Secondary Feature"
 
     ax.set_xlabel("Mean |SHAP value| (average impact on predictions)", fontsize=10, labelpad=8)
     ax.set_title("Overall Feature Importance\n(longer bar = larger average impact)",
@@ -331,166 +268,8 @@ def fig04_shap_summary(
     ax.set_axisbelow(True)
     ax.spines["bottom"].set_visible(False)
 
-    _takeaway(fig,
-              f"Key takeaway: Season average points ({top3[0]}) is the strongest predictor, "
-              f"confirming that a player's baseline level dominates predictions. "
-              f"Short-term form ({top3[1]}) and context features add meaningful but smaller signal.")
     fig.tight_layout()
     return _save(fig, "Q1_fig04_shap_summary")
-
-
-# ── Figure 5: Context effects ─────────────────────────────────────────────────
-
-def fig05_context_effects(df_test: pd.DataFrame, predictions: np.ndarray) -> Path:
-    """
-    Three-panel figure:
-      (a) Rest days → predicted points
-      (b) Home vs Away → predicted points
-      (c) Opponent defensive rating → predicted points (scatter + regression)
-    """
-    df = df_test.copy()
-    df["__pred"]  = predictions
-    df["__error"] = np.abs(predictions - df["PTS"].values)
-
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle(
-        "Q1 Analysis: How Do Context Factors Affect Scoring Predictions?\n"
-        "Partial Analysis — Effect of Rest, Venue, and Opponent",
-        fontsize=13, fontweight="bold", y=1.02,
-    )
-
-    # ── Panel A: rest days ─────────────────────────────────────────────────
-    ax = axes[0]
-    rest_map = {1: "B2B\n(1 day)", 2: "2 days", "3+": "3+ days"}
-    grps, labels, pred_means, act_means, pred_cis = [], [], [], [], []
-
-    for days in [1, 2, "3+"]:
-        if days == "3+":
-            mask = df.get("rest_days", pd.Series(dtype=float)) >= 3
-        else:
-            mask = df.get("rest_days", pd.Series(dtype=float)) == days
-        if mask is None or mask.sum() < 20:
-            continue
-        sub = df[mask]
-        grps.append(days)
-        labels.append(rest_map[days])
-        pred_means.append(sub["__pred"].mean())
-        act_means.append(sub["PTS"].mean())
-        pred_cis.append(stats.sem(sub["__pred"]) * 1.96)
-
-    x = np.arange(len(labels))
-    bar_cols = ["#e57373", "#ffb74d", "#81c784"][:len(labels)]
-    ax.bar(x, pred_means, color=bar_cols, width=0.45, zorder=3,
-           yerr=pred_cis, capsize=5,
-           error_kw={"elinewidth": 1.5, "ecolor": "#444"})
-    ax.scatter(x, act_means, color=C["dark"], s=50, zorder=5, marker="D",
-               label="Actual avg")
-    for xi, (pm, am) in enumerate(zip(pred_means, act_means)):
-        ax.text(xi, pm + max(pred_cis or [0.1]) * 1.2 + 0.1,
-                f"{pm:.1f}", ha="center", fontsize=10, fontweight="bold")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=10)
-    ax.set_ylabel("Average predicted points", fontsize=10)
-    ax.set_title("Rest Days Effect\n(bars=predicted, ◆=actual)", fontsize=10, fontweight="bold")
-    ax.yaxis.grid(True, zorder=0)
-    ax.spines["left"].set_visible(False)
-    ax.legend(fontsize=8)
-    if pred_means:
-        rng = max(pred_means) - min(pred_means)
-        ax.set_ylim(min(pred_means) - rng * 2, max(pred_means) + rng * 4)
-
-    # ── Panel B: home / away ───────────────────────────────────────────────
-    ax = axes[1]
-    home_col = "is_home" if "is_home" in df.columns else None
-    if home_col:
-        h_mask = df[home_col] == 1
-        a_mask = df[home_col] == 0
-        h_pred = df.loc[h_mask, "__pred"].values
-        a_pred = df.loc[a_mask, "__pred"].values
-        h_act  = df.loc[h_mask, "PTS"].values
-        a_act  = df.loc[a_mask, "PTS"].values
-
-        cats   = ["Away", "Home"]
-        pm_vals= [a_pred.mean(), h_pred.mean()]
-        am_vals= [a_act.mean(),  h_act.mean()]
-        ci_vals= [stats.sem(a_pred)*1.96, stats.sem(h_pred)*1.96]
-        colors = ["#e57373", "#81c784"]
-
-        bars = ax.bar(cats, pm_vals, color=colors, width=0.4, zorder=3,
-                      yerr=ci_vals, capsize=5,
-                      error_kw={"elinewidth": 1.5, "ecolor": "#444"})
-        ax.scatter([0, 1], am_vals, color=C["dark"], s=50, zorder=5,
-                   marker="D", label="Actual avg")
-        for xi, (pm, am) in enumerate(zip(pm_vals, am_vals)):
-            ax.text(xi, pm + max(ci_vals) * 1.2 + 0.05,
-                    f"{pm:.1f}", ha="center", fontsize=11, fontweight="bold")
-
-        diff = pm_vals[1] - pm_vals[0]
-        t_s, p_v = stats.ttest_ind(h_pred, a_pred)
-        ax.text(0.5, 0.93,
-                f"Home advantage: +{diff:.1f} pts\n(p={p_v:.3f})",
-                transform=ax.transAxes, ha="center", fontsize=9,
-                color=C["green"] if p_v < 0.05 else C["grey"],
-                fontweight="bold",
-                bbox=dict(boxstyle="round,pad=0.3", fc="#f0f7e6", ec=C["green"], lw=0.8))
-        ax.set_ylabel("Average predicted points", fontsize=10)
-        ax.set_title("Home vs. Away Effect\n(bars=predicted, ◆=actual)",
-                     fontsize=10, fontweight="bold")
-        ax.yaxis.grid(True, zorder=0)
-        ax.spines["left"].set_visible(False)
-        ax.legend(fontsize=8)
-        rng2 = max(pm_vals) - min(pm_vals)
-        ax.set_ylim(min(pm_vals) - rng2 * 3, max(pm_vals) + rng2 * 6)
-
-    # ── Panel C: opponent defensive rating ─────────────────────────────────
-    ax = axes[2]
-    opp_col = "opp_def_rating_roll5"
-    if opp_col in df.columns and df[opp_col].notna().sum() > 50:
-        df["_opp_bin"] = pd.qcut(df[opp_col], q=8, duplicates="drop")
-        agg = df.groupby("_opp_bin", observed=True).agg(
-            opp_mid=   (opp_col, "mean"),
-            pred_mean= ("__pred","mean"),
-            pred_ci=   ("__pred", lambda x: stats.sem(x) * 1.96),
-            act_mean=  ("PTS",   "mean"),
-            n=         ("PTS",   "count"),
-        ).reset_index()
-
-        sizes = agg["n"] / agg["n"].max() * 150
-        ax.scatter(agg["opp_mid"], agg["act_mean"],
-                   s=sizes, color=C["grey"], alpha=0.7, zorder=3, label="Actual avg")
-        ax.scatter(agg["opp_mid"], agg["pred_mean"],
-                   s=sizes, color=C["blue"], alpha=0.9, zorder=4, label="Predicted avg")
-        ax.errorbar(agg["opp_mid"], agg["pred_mean"], yerr=agg["pred_ci"],
-                    fmt="none", color=C["blue"], alpha=0.3, zorder=3)
-
-        slope, intercept, r, p, _ = stats.linregress(agg["opp_mid"], agg["pred_mean"])
-        x_line = np.linspace(agg["opp_mid"].min(), agg["opp_mid"].max(), 100)
-        ax.plot(x_line, slope*x_line + intercept, "--", color=C["blue"], lw=1.8, alpha=0.7)
-
-        direction = "↑" if slope > 0 else "↓"
-        ax.text(0.97, 0.08,
-                f"Predicted pts {direction} {abs(slope):.2f} per unit\n"
-                f"(r={r:.2f}, p={p:.3f})",
-                transform=ax.transAxes, ha="right", fontsize=8.5,
-                bbox=dict(boxstyle="round,pad=0.3", fc="#e8f4fd", ec=C["light_blue"], lw=0.8))
-
-        ax.set_xlabel("Opponent defensive rating (rolling 5-game avg)", fontsize=10, labelpad=6)
-        ax.set_ylabel("Points per game", fontsize=10, labelpad=6)
-        ax.set_title("Opponent Strength Effect\n(higher rating = weaker defence)",
-                     fontsize=10, fontweight="bold")
-        ax.legend(fontsize=8)
-        ax.yaxis.grid(True, zorder=0)
-        ax.spines["left"].set_visible(False)
-    else:
-        axes[2].text(0.5, 0.5, "OPP_DEF_RATING\nnot available",
-                     ha="center", va="center", transform=axes[2].transAxes, fontsize=12)
-
-    _takeaway(fig,
-              "Key takeaway: Rest has the largest contextual effect — players on back-to-back "
-              "games score ~0.8 pts fewer on average. Home court adds ~0.6 pts. "
-              "Opponent defensive quality shows a clear negative relationship with predicted scoring.")
-    fig.tight_layout()
-    return _save(fig, "Q1_fig05_context_effects")
 
 
 # ── Figure 6: Error by tier and position ──────────────────────────────────────
@@ -589,49 +368,6 @@ def fig06_error_by_subgroup(df_test: pd.DataFrame, predictions: np.ndarray) -> P
               "centers, likely because guard scoring is more sensitive to defensive matchups.")
     fig.tight_layout()
     return _save(fig, "Q1_fig06_error_by_subgroup")
-
-
-# ── Figure 7: Statistical test forest plot ────────────────────────────────────
-
-def fig07_statistical_tests(stats_df: pd.DataFrame) -> Path:
-    """Visual summary of all hypothesis tests (forest-plot style)."""
-    if stats_df.empty:
-        logger.warning("No statistical results to plot")
-        return None
-
-    fig, ax = plt.subplots(figsize=(12, max(4, len(stats_df) * 1.2)))
-    fig.suptitle(
-        "Q1 Statistical Analysis: Which Contextual Factors Significantly Affect Scoring?\n"
-        "Hypothesis tests with effect sizes (α = 0.05)",
-        fontsize=13, fontweight="bold", y=1.02,
-    )
-
-    y_positions = np.arange(len(stats_df))
-    sig_colors  = [C["blue"] if s == "✓" else C["grey"] for s in stats_df["Significant"]]
-
-    for i, (_, row) in enumerate(stats_df.iterrows()):
-        color = sig_colors[i]
-        ax.barh(i, 1, color=color, height=0.5, alpha=0.8, zorder=3)
-        ax.text(-0.05, i, row["Question"], ha="right", va="center",
-                fontsize=9.5, color=C["dark"])
-        ax.text(1.05, i,
-                f"{row['Significant']}  p={row['p-value']}  {row['Effect size']}",
-                ha="left", va="center", fontsize=9, color=color)
-
-    ax.set_yticks([])
-    ax.set_xticks([])
-    ax.set_xlim(-5, 6)
-    ax.spines["left"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-
-    legend_patches = [
-        mpatches.Patch(color=C["blue"],  label="Statistically significant (p < 0.05)"),
-        mpatches.Patch(color=C["grey"],  label="Not significant (p ≥ 0.05)"),
-    ]
-    ax.legend(handles=legend_patches, loc="lower right", fontsize=9)
-
-    fig.tight_layout()
-    return _save(fig, "Q1_fig07_statistical_tests")
 
 
 # ── Figure 8: Rolling prediction for example players ─────────────────────────

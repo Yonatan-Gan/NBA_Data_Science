@@ -275,7 +275,6 @@ def build_report(
     KB = lambda items: KeepTogether(items)
 
     FW = CONTENT_W   # full content width
-    HW = (FW - 0.4*cm) / 2   # half width for side-by-side figures
 
     # ══════════════════════════════════════════════════════════════════════════
     #  TITLE PAGE
@@ -532,11 +531,6 @@ def build_report(
             SP(6),
         ]
 
-    story += _fig("Q1_fig01_ablation", FW/cm, 5.5,
-        "Figure 1. Ablation study results. Left: absolute MAE by feature set. "
-        "Right: MAE improvement vs the player-form-only baseline. Each experiment "
-        "adds one context layer to the previous.", S)
-
     story += [
         TakeawayBox(
             "Key finding: Career context (player age, experience, career averages) "
@@ -573,7 +567,7 @@ def build_report(
         ]
 
     story += _fig("Q1_fig02_model_comparison", FW/cm, 5.5,
-        "Figure 2. Model comparison on the full feature set (chronological split). "
+        "Figure 1. Model comparison on the full feature set (chronological split). "
         "Left: MAE (lower = better). Centre: R² score (higher = better). "
         "Right: training time in seconds.", S)
 
@@ -592,7 +586,7 @@ def build_report(
     ]
 
     story += _fig("Q1_fig03_actual_vs_predicted", FW/cm, 6.0,
-        "Figure 3. Left: hexbin scatter of actual vs predicted points for the best model. "
+        "Figure 2. Left: hexbin scatter of actual vs predicted points for the best model (scale limited to 50 pts). "
         "Points along the diagonal were predicted perfectly. Right: prediction error "
         "distribution — approximately symmetric around zero, indicating no systematic bias.",
         S)
@@ -614,10 +608,8 @@ def build_report(
     shap_path = cfg.FIGURES_DIR / "Q1_fig04_shap_summary.png"
     if shap_path.exists():
         story += _fig("Q1_fig04_shap_summary", FW/cm, 7.0,
-            "Figure 4. Left: SHAP beeswarm plot. Each dot is one prediction. "
-            "The x-axis shows the feature's impact on that prediction; colour shows "
-            "the feature's value (red=high, blue=low). Right: mean absolute SHAP "
-            "value per feature — overall importance ranking.", S)
+            "Figure 3. Mean absolute SHAP value per feature — overall importance ranking. "
+            "Features with near-zero impact (<0.005) have been excluded.", S)
     else:
         story.append(P("[SHAP figure not generated — re-run main.py]", "caption"))
 
@@ -636,30 +628,11 @@ def build_report(
     ]
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  8. CONTEXT EFFECTS
+    #  8. STATISTICAL ANALYSIS & SUBGROUP ERROR
     # ══════════════════════════════════════════════════════════════════════════
     story += [
         SectionRule(FW), SP(4),
-        P("8. Context Effects", "h1"),
-        P("Beyond overall accuracy, we investigate whether specific contextual factors "
-          "systematically shift predictions in expected directions. This validates that "
-          "the model has learned genuine relationships, not spurious patterns."),
-        SP(4),
-    ]
-
-    story += _fig("Q1_fig05_context_effects", FW/cm, 5.5,
-        "Figure 5. Left: predicted points by rest days — players on back-to-back games "
-        "vs 2 or 3+ days of rest. Centre: home vs away predicted scoring. "
-        "Right: predicted scoring vs opponent defensive quality (rolling pts allowed).",
-        S)
-    story.append(SP(8))
-
-    # ══════════════════════════════════════════════════════════════════════════
-    #  9. STATISTICAL ANALYSIS
-    # ══════════════════════════════════════════════════════════════════════════
-    story += [
-        SectionRule(FW), SP(4),
-        P("9. Three Questions the Data Answered — One Result Nobody Expected", "h1"),
+        P("8. Statistical Analysis & Subgroup Error", "h1"),
         P("We conduct four hypothesis tests on the test-set predictions to answer "
           "specific research sub-questions. Each test reports a test statistic, "
           "p-value, effect size, and interpretation."),
@@ -685,37 +658,33 @@ def build_report(
             SP(6),
         ]
 
-    story += _fig("Q1_fig07_statistical_tests", FW/cm, 4.0,
-        "Figure 6. Visual summary of hypothesis tests. Blue bars indicate significant "
-        "results; grey bars indicate non-significant findings.", S)
-
     story += [
         SP(6),
         P("<b>Fatigue (back-to-back games):</b> NBA players are professionals. One extra night of rest does not move the needle — at least not in the box score. The within-player paired test (321 players, MIN &gt; 20) finds no scoring difference on back-to-back nights whatsoever (p=0.928). What fatigue changes — defensive effort, load management decisions, late-game availability — simply doesn't show up in points. The box score is not a fatigue sensor."),
+        P("<b>Home court advantage:</b> Home games are not significantly easier to "
+          "predict than away games (p=0.267). Home court does boost scoring (a well-"
+          "documented effect), but this boost is already captured in the rolling "
+          "averages, so the model's residual error is similar in both venues."),
         P("<b>Scoring tier predictability:</b> ANOVA reveals highly significant "
           "differences in prediction error across scoring tiers (F=609, p&lt;0.001, "
           "η²=0.058). Star players (20+ ppg) have substantially higher prediction "
           "error than role players — they face targeted defensive schemes that create "
           "genuine game-to-game variance that no model can fully capture."),
-        P("<b>Home court advantage:</b> Home games are not significantly easier to "
-          "predict than away games (p=0.267). Home court does boost scoring (a well-"
-          "documented effect), but this boost is already captured in the rolling "
-          "averages, so the model's residual error is similar in both venues."),
         SP(6),
     ]
 
     story += _fig("Q1_fig06_error_by_subgroup", FW/cm, 5.5,
-        "Figure 7. Prediction error broken down by scoring tier (left) and position "
+        "Figure 4. Prediction error broken down by scoring tier (left) and position "
         "(right). Stars are harder to predict; position differences are smaller.",
         S)
     story.append(SP(8))
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  10. ROLLING PREDICTIONS
+    #  9. ROLLING PREDICTIONS
     # ══════════════════════════════════════════════════════════════════════════
     story += [
         SectionRule(FW), SP(4),
-        P("10. Individual Player Tracking", "h1"),
+        P("9. Individual Player Tracking", "h1"),
         P("To validate the model qualitatively, we plot game-by-game actual vs predicted "
           "points for individual players across the test season. A good model should "
           "track the broad shape of a player's season — rising after hot streaks, "
@@ -724,7 +693,7 @@ def build_report(
     ]
 
     story += _fig("Q1_fig08_rolling_predictions", FW/cm, 9.0,
-        "Figure 8. Actual vs predicted points for three example players across the "
+        "Figure 5. Actual vs predicted points for three example players across the "
         "test period. Blue line = model predictions, grey line = actual scoring, "
         "red dashed line = season average. The model tracks the broad seasonal arc "
         "but cannot anticipate single-game outliers.", S)
@@ -736,11 +705,11 @@ def build_report(
     ]
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  11. DISCUSSION
+    #  10. DISCUSSION
     # ══════════════════════════════════════════════════════════════════════════
     story += [
         SectionRule(FW), SP(4),
-        P("11. Discussion", "h1"),
+        P("10. Discussion", "h1"),
         P("The central finding of this study is that NBA scoring prediction has a hard "
           "accuracy ceiling of approximately ±4.5 points MAE, regardless of model "
           "sophistication. This ceiling is not a modelling failure — it reflects "
@@ -773,11 +742,11 @@ def build_report(
     ]
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  12. LIMITATIONS & FUTURE WORK
+    #  11. LIMITATIONS & FUTURE WORK
     # ══════════════════════════════════════════════════════════════════════════
     story += [
         SectionRule(FW), SP(4),
-        P("12. Limitations and Future Work", "h1"),
+        P("11. Limitations and Future Work", "h1"),
         P("<b>Limitations:</b>"),
         P("&nbsp;&nbsp;• <b>No DEF_RATING in team game logs:</b> The per-game team logs "
           "from the NBA API (TeamGameLogs endpoint) contain only box score statistics. "
@@ -809,11 +778,11 @@ def build_report(
     ]
 
     # ══════════════════════════════════════════════════════════════════════════
-    #  13. CONCLUSION
+    #  12. CONCLUSION
     # ══════════════════════════════════════════════════════════════════════════
     story += [
         SectionRule(FW), SP(4),
-        P("13. Conclusion", "h1"),
+        P("12. Conclusion", "h1"),
         P("We built a modular, reproducible pipeline for predicting NBA player next-game "
           "scoring using five categories of contextual features and ten machine learning "
           "models. Our primary findings are:"),
