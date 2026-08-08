@@ -16,7 +16,7 @@ print("---------------------------------------------------------")
 
 for year in years:
     for table_id in target_tables:
-        # Hitting the master playoff URLs instead of team URLs
+        # Use league-wide playoff pages rather than individual team pages.
         url = f"https://www.basketball-reference.com/playoffs/NBA_{year}_{table_id}.html"
         file_name = f"{output_dir}/LEAGUE_PLAYOFFS_{year}_{table_id}.csv"
         
@@ -40,16 +40,16 @@ for year in years:
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'lxml')
             
-            # The master pages append '_stats' to the HTML IDs
+            # League-wide pages commonly use table IDs ending in "_stats".
             table = soup.find('table', {'id': f"{table_id}_stats"})
             
             if not table:
-                table = soup.find('table', {'id': table_id}) # Fallback
+                table = soup.find('table', {'id': table_id}) # Try the unmodified table ID
             
             if table:
                 df = pd.read_html(io.StringIO(str(table)))[0]
                 
-                # Clean up the dataframe
+                # Normalize columns and remove repeated or empty rows.
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.droplevel(0)
                     

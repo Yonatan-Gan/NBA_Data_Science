@@ -73,11 +73,11 @@ SEASONS = [
 ]
 
 # Set to False to skip a section if you want to run in batches
-COLLECT_STATIC_DATA         = False   # players list, teams list, draft history (Done)
-COLLECT_LEAGUE_SEASON_STATS = False  # season-level aggregated stats per season + season type (Done)
-COLLECT_PLAYER_GAME_LOGS    = False   # every player's game-by-game log (bulk) (Done)
-COLLECT_TEAM_GAME_LOGS      = False   # every team's game-by-game log (bulk) (Done)
-COLLECT_BOX_SCORES          = False   # per-game box scores (slow – most data) (Failed)
+COLLECT_STATIC_DATA         = False   # Players, teams, and draft history
+COLLECT_LEAGUE_SEASON_STATS = False   # Season-level statistics by season type
+COLLECT_PLAYER_GAME_LOGS    = False   # Player game logs from bulk endpoints
+COLLECT_TEAM_GAME_LOGS      = False   # Team game logs from bulk endpoints
+COLLECT_BOX_SCORES          = False   # Per-game box scores; the slowest collection section
 COLLECT_PLAYER_PROFILES     = False   # career stats + bio for active players
 COLLECT_ROSTER_DATA         = False   # team rosters per season
 COLLECT_PLAYOFF_DATA        = False   # playoff-specific stats + series results
@@ -117,12 +117,12 @@ def safe_call(fn, *args, retries: int = 4, **kwargs):
         try:
             time.sleep(DELAY)
 
-            # only pass kwargs that endpoint actually accepts
+            # Call the endpoint with the supplied positional and keyword arguments.
             return fn(*args, **kwargs)
 
         except TypeError as e:
             log.error(f"❌ Bad arguments for {fn.__name__}: {e}")
-            return None  # do NOT retry
+            return None  # Type errors are not retried.
 
         except Exception as exc:
             wait = 10 * (2 ** attempt)
@@ -231,7 +231,7 @@ def collect_league_season_stats():
                 save(result.get_data_frames()[0],
                      f"{base}/player_clutch_{st_slug}.csv", f"player clutch {season_type}")
 
-            # ── Player estimated metrics (RAPTOR-style) ──
+            # ── Player estimated metrics ──
             result = safe_call(
                 PlayerEstimatedMetrics,
                 league_id="00",
@@ -342,7 +342,7 @@ def collect_team_game_logs():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  5.  BOX SCORES  (Traditional + Advanced, per game)
+#  5. BOX SCORES  (Traditional, advanced, and miscellaneous)
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _get_all_game_ids(season: str, season_type: str) -> list:

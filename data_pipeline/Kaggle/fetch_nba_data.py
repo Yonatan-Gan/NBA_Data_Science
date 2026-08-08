@@ -2,7 +2,7 @@
 """
 NBA Data Collection & Feature Engineering Pipeline
 ===================================================
-Downloads three Kaggle datasets and produces analysis-ready CSVs for:
+Downloads three Kaggle datasets and produces processed CSVs for:
 
   Q1  Player next-game performance prediction
       → data/processed/q1_player_game_logs.csv   (game-level rows, rolling features)
@@ -196,7 +196,7 @@ details = read_csv(RAW / "nba_games" / "games_details.csv", low_memory=False)
 
 # ── Clean details ─────────────────────────────────────────────────────────────
 
-# MIN comes as "32:45" or numeric — convert to minutes played
+# MIN may be formatted as "MM:SS"; retain the minute component and coerce it to numeric.
 details["MIN"] = (
     details["MIN"].astype(str)
     .str.split(":").str[0]
@@ -259,7 +259,7 @@ df["BACK_TO_BACK"] = (df["DAYS_REST"] == 1).astype("int8")
 df["DAYS_REST"]    = df["DAYS_REST"].fillna(7).clip(upper=14)  # cap at 14
 
 # ── Opponent defensive strength ───────────────────────────────────────────────
-# Proxy: average PTS that the opponent team concedes per player per season.
+# Full-season proxy: average player points scored against each opponent team.
 
 opp_pts_allowed = (
     details
@@ -384,7 +384,7 @@ q2p = season_stats.merge(
     how="left",
 )
 q2p["age_computed"] = q2p["Year"] - q2p["birth_year"]
-q2p["experience"]   = q2p.groupby("Player").cumcount() + 1  # seasons in league
+q2p["experience"]   = q2p.groupby("Player").cumcount() + 1  # Sequential retained row number for each player
 
 # Nationality
 if not player_info.empty:
@@ -634,7 +634,7 @@ q3_agg = (
 q3_agg.columns = ["_".join(c) for c in q3_agg.columns]
 q3_agg = q3_agg.reset_index()
 
-# Rename *_count columns → games_played (use first stat as proxy)
+# Use the first available statistic count as the games-played proxy.
 first_cnt = next((c for c in q3_agg.columns if c.endswith("_count")), None)
 if first_cnt:
     q3_agg = q3_agg.rename(columns={first_cnt: "games_played"})
