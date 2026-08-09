@@ -37,7 +37,7 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, HRFlowable
 )
 
-# ── CONFIG ────────────────────────────────────────────────────────────────
+# CONFIG
 DATA_DIR    = "../../../../../../year 3/Semester B/מחט בערמת דאטה/NBA_Data/nba_data"
 OUTPUT_FILE = "../../../../../../year 3/Semester B/מחט בערמת דאטה/NBA_Data/nba_age_distribution.pdf"
 
@@ -50,7 +50,7 @@ PAGE_W, PAGE_H = landscape(A4)
 MARGIN = 2.0 * cm
 CONTENT_W = PAGE_W - 2 * MARGIN
 
-# ── LOAD DATA ─────────────────────────────────────────────────────────────
+# LOAD DATA
 print("="*60)
 print("  NBA Age Distribution Chart Generator")
 print(f"  Data dir : {os.path.abspath(DATA_DIR)}/")
@@ -58,14 +58,14 @@ print("="*60)
 
 bio_path = f"{DATA_DIR}/player_profiles/player_bio_info.csv"
 if not os.path.exists(bio_path):
-    print(f"\n✗  Not found: {bio_path}")
-    print("   Run nba_data_collector.py first.\n")
+    print(f"\nNot found: {bio_path}")
+    print("  Run nba_data_collector.py first.\n")
     sys.exit(1)
 
 bio = pd.read_csv(bio_path, low_memory=False)
-print(f"  ✓  Loaded player_bio_info.csv  ({len(bio):,} rows)")
+print(f"  Loaded player_bio_info.csv  ({len(bio):,} rows)")
 
-# ── DERIVE AGE ────────────────────────────────────────────────────────────
+# DERIVE AGE
 # Use the midpoint of the 2024-25 season as reference date
 REF_DATE = pd.Timestamp("2025-01-15")
 
@@ -77,11 +77,11 @@ if "BIRTHDATE" in bio.columns:
     bio["BIRTHDATE"] = pd.to_datetime(bio["BIRTHDATE"], errors="coerce")
     bio["_age"] = ((REF_DATE - bio["BIRTHDATE"]).dt.days / 365.25).fillna(-1).astype(int)
     age_col = "_age"
-    print("  → Age derived from BIRTHDATE")
+    print("  -> Age derived from BIRTHDATE")
 elif "AGE" in bio.columns:
     bio["_age"] = pd.to_numeric(bio["AGE"], errors="coerce")
     age_col = "_age"
-    print("  → Age from AGE column")
+    print("  -> Age from AGE column")
 else:
     # Fallback: season bio stats
     fb = f"{DATA_DIR}/season_stats/2024-25/player_bio_regular_season.csv"
@@ -93,9 +93,9 @@ else:
             bio["_age"] = pd.to_numeric(bio[col], errors="coerce")
             age_col = "_age"
             name_col = next((c for c in ["PLAYER_NAME","DISPLAY_FIRST_LAST"] if c in bio.columns), None)
-            print(f"  → Age from season bio stats ({col})")
+            print(f"  -> Age from season bio stats ({col})")
     if age_col is None:
-        print("✗  Cannot find age data. Checked BIRTHDATE, AGE, PLAYER_AGE.")
+        print("Cannot find age data. Checked BIRTHDATE, AGE, PLAYER_AGE.")
         sys.exit(1)
 
 bio = bio.dropna(subset=[age_col])
@@ -111,7 +111,7 @@ ages        = list(age_counts.index)
 counts      = list(age_counts.values)
 peak_count  = max(counts)
 
-# ── FIND OUTLIER NAME ─────────────────────────────────────────────────────
+# FIND OUTLIER NAME
 # Find the oldest player(s) and get their name
 outlier_age   = int(age_counts[age_counts > 0].index.max())
 outlier_name  = "Veteran"   # fallback
@@ -125,16 +125,16 @@ if name_col and outlier_age in bio["_age"].values:
         if len(all_oldest) > 1:
             outlier_name = " & ".join(all_oldest[:2])
 
-print(f"  → {n_players} players | avg age {avg_age: .2f} | peak {peak_age} | oldest: {outlier_name} ({outlier_age})")
+print(f"  -> {n_players} players | avg age {avg_age: .2f} | peak {peak_age} | oldest: {outlier_name} ({outlier_age})")
 
-# ── BUILD CHART ───────────────────────────────────────────────────────────
+# BUILD CHART
 print("\n  Rendering chart...")
 
 fig, ax = plt.subplots(figsize=(15, 7))
 fig.patch.set_facecolor("white")
 ax.set_facecolor("white")
 
-# Bar colours — blue gradient based on height, matching reference image style
+# Bar colours - blue gradient based on height, matching reference image style
 bar_colors = []
 for c in counts:
     t = c / peak_count
@@ -152,7 +152,7 @@ for age, count in zip(ages, counts):
                 ha="center", va="bottom",
                 fontsize=9.5, color="#1565C0", fontweight="bold")
 
-# ── AVERAGE AGE LINE (red, like reference's red annotation) ───────────────
+# AVERAGE AGE LINE (red, like reference's red annotation)
 ax.axvline(avg_age, color="#E53935", linewidth=2.2,
            linestyle="-", zorder=5, alpha=0.9)
 
@@ -167,7 +167,7 @@ ax.text(avg_age + label_x_offset,
         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#E53935",
                   lw=1, alpha=0.85))
 
-# ── OUTLIER ANNOTATION (green, like reference's event annotations) ─────────
+# OUTLIER ANNOTATION (green, like reference's event annotations)
 if outlier_age in age_counts.index:
     outlier_count = int(age_counts[outlier_age])
     # Decide arrow direction based on whether outlier is left or right of center
@@ -187,7 +187,7 @@ if outlier_age in age_counts.index:
         zorder=6,
     )
 
-# ── TITLES ────────────────────────────────────────────────────────────────
+# TITLES
 ax.set_title(
     "NBA Players Age Distribution",
     fontsize=22, fontweight="bold", color="#0d0d0d",
@@ -195,12 +195,12 @@ ax.set_title(
 )
 ax.text(
     0.5, 1.012,
-    f"Age distribution of active NBA players  ·  2024–25 season  ·  {n_players} players",
+    f"Age distribution of active NBA players  ·  2024-25 season  ·  {n_players} players",
     transform=ax.transAxes, ha="center", fontsize=12,
     color="#555555", style="italic"
 )
 
-# ── AXES & GRID ───────────────────────────────────────────────────────────
+# AXES & GRID
 ax.set_xlabel("Age", fontsize=20,fontweight="bold", color="#444444", labelpad=8)
 ax.set_ylabel("Number of players", fontsize=20,fontweight="bold", color="#444444", labelpad=8)
 
@@ -223,19 +223,19 @@ ax.set_ylim(0, peak_count * 1.22)
 
 fig.tight_layout(pad=1.5)
 
-# ── RENDER TO BUFFER ──────────────────────────────────────────────────────
+# RENDER TO BUFFER
 buf = io.BytesIO()
 fig.savefig(buf, format="png", dpi=200, bbox_inches="tight", facecolor="white")
 buf.seek(0)
 plt.close(fig)
-print("  ✓  Chart rendered")
+print("  Chart rendered")
 
-# ── ASSEMBLE PDF ──────────────────────────────────────────────────────────
+# ASSEMBLE PDF
 print("  Building PDF...")
 
 story = []
 
-# chart image — fill the content width
+# chart image - fill the content width
 chart_h_cm = CONTENT_W / cm * (7 / 15)   # preserve aspect ratio (15:7 figsize)
 story.append(RLImage(buf, width=CONTENT_W, height=chart_h_cm * cm))
 
@@ -253,5 +253,5 @@ doc = SimpleDocTemplate(
 doc.build(story)
 
 print(f"\n{'='*60}")
-print(f"  ✅  PDF saved → {os.path.abspath(OUTPUT_FILE)}")
+print(f"  PDF saved -> {os.path.abspath(OUTPUT_FILE)}")
 print(f"{'='*60}\n")

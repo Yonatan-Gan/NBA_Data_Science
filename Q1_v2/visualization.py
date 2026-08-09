@@ -1,6 +1,4 @@
 """
-visualization.py
-================
 All figures for the Q1 report.  Every function:
   - saves a PNG to FIGURES_DIR
   - returns the Path to the saved file
@@ -30,7 +28,7 @@ from config import FIGURES_DIR, STYLE
 
 logger = logging.getLogger(__name__)
 
-# ── Global matplotlib style ───────────────────────────────────────────────────
+# Global matplotlib style
 plt.rcParams.update({
     "font.family":         "DejaVu Sans",
     "axes.spines.top":     False,
@@ -58,7 +56,7 @@ def _save(fig: plt.Figure, name: str) -> Path:
     path = FIGURES_DIR / f"{name}{C['fig_ext']}"
     fig.savefig(path, dpi=C["dpi"], bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    logger.info(f"  ✓  {path.name}")
+    logger.info(f"  {path.name}")
     return path
 
 
@@ -73,7 +71,7 @@ def _takeaway(fig: plt.Figure, text: str, y: float = -0.04) -> None:
     )
 
 
-# ── Figure 2: Model comparison ────────────────────────────────────────────────
+# Figure 2: Model comparison
 
 def fig02_model_comparison(model_results: list) -> Path:
     """MAE and R² side-by-side bar chart for all models."""
@@ -129,7 +127,7 @@ def fig02_model_comparison(model_results: list) -> Path:
     return _save(fig, "Q1_fig02_model_comparison")
 
 
-# ── Figure 3: Actual vs Predicted ─────────────────────────────────────────────
+# Figure 3: Actual vs Predicted
 
 def fig03_actual_vs_predicted(
     actuals: np.ndarray,
@@ -142,7 +140,7 @@ def fig03_actual_vs_predicted(
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
     fig.suptitle(
         f"Q1 Analysis: How Close Are the Predictions?\n"
-        f"{model_name} — Actual vs Predicted Next-Game Points",
+        f"{model_name} - Actual vs Predicted Next-Game Points",
         fontsize=13, fontweight="bold", y=1.02,
     )
 
@@ -208,34 +206,41 @@ def fig03_actual_vs_predicted(
     return _save(fig, "Q1_fig03_actual_vs_predicted")
 
 
-# ── Figure 4: SHAP summary ────────────────────────────────────────────────────
+# Figure 4: SHAP summary
 
 def fig04_shap_summary(
     shap_values:   np.ndarray,
     X_sample:      pd.DataFrame,
     feature_names: list[str],
+    top_n:         int = 12,
 ) -> Path:
-    """SHAP global importance bar chart."""
+    """SHAP global importance bar chart. Shows only the top `top_n` features
+    by mean |SHAP value| - anything past that is close to background noise
+    and only clutters the chart."""
     try:
         import shap as shap_lib
     except ImportError:
-        logger.warning("shap not installed — skipping SHAP figure")
+        logger.warning("shap not installed - skipping SHAP figure")
         return None
 
     # Changed from 1x2 to 1x1 grid and adjusted width
-    fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+    fig, ax = plt.subplots(1, 1, figsize=(9, 6))
     fig.suptitle(
         "Q1 Analysis: What Drives NBA Scoring Predictions?\n"
-        "SHAP Values — Impact of Each Feature on the Model's Output",
+        f"SHAP Values - Top {top_n} Features by Impact on the Model's Output",
         fontsize=13, fontweight="bold", y=1.02,
     )
 
     mean_abs = np.abs(shap_values).mean(axis=0)
 
-    # Filter out features with 0.00 importance
+    # Filter out features with 0.00 importance, then keep only the top_n
     non_zero_idx = np.where(mean_abs >= 0.005)[0]
     mean_abs_filtered = mean_abs[non_zero_idx]
     feature_names_filtered = [feature_names[i] for i in non_zero_idx]
+
+    top_order = np.argsort(mean_abs_filtered)[::-1][:top_n]
+    mean_abs_filtered = mean_abs_filtered[top_order]
+    feature_names_filtered = [feature_names_filtered[i] for i in top_order]
 
     order = np.argsort(mean_abs_filtered)
     feat_sorted = [feature_names_filtered[i] for i in order]
@@ -272,7 +277,7 @@ def fig04_shap_summary(
     return _save(fig, "Q1_fig04_shap_summary")
 
 
-# ── Figure 6: Error by tier and position ──────────────────────────────────────
+# Figure 6: Error by tier and position
 
 def fig06_error_by_subgroup(df_test: pd.DataFrame, predictions: np.ndarray) -> Path:
     """Prediction MAE broken down by scoring tier and position."""
@@ -363,14 +368,14 @@ def fig06_error_by_subgroup(df_test: pd.DataFrame, predictions: np.ndarray) -> P
 
     _takeaway(fig,
               "Key takeaway: Star players (20+ ppg) are significantly harder to predict "
-              "than role players — defenders game-plan specifically for them, creating higher "
+              "than role players - defenders game-plan specifically for them, creating higher "
               "game-to-game variance. Guards tend to have slightly higher prediction error than "
               "centers, likely because guard scoring is more sensitive to defensive matchups.")
     fig.tight_layout()
     return _save(fig, "Q1_fig06_error_by_subgroup")
 
 
-# ── Figure 8: Rolling prediction for example players ─────────────────────────
+# Figure 8: Rolling prediction for example players
 
 def fig08_rolling_prediction_examples(
     df_test: pd.DataFrame,
@@ -379,7 +384,7 @@ def fig08_rolling_prediction_examples(
 ) -> Path:
     """
     For n_players example players, plot game-by-game actual vs predicted PTS.
-    Shows what the model "sees" over a season — good for qualitative validation.
+    Shows what the model "sees" over a season - good for qualitative validation.
     """
     df = df_test.copy()
     df["__pred"] = predictions
@@ -415,7 +420,7 @@ def fig08_rolling_prediction_examples(
         axes = [axes]
     fig.suptitle(
         "Q1 Analysis: Following Individual Players Through the Season\n"
-        "Actual vs Predicted Points — Game by Game",
+        "Actual vs Predicted Points - Game by Game",
         fontsize=13, fontweight="bold", y=1.01,
     )
 

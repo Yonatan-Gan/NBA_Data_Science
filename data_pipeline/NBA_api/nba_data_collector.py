@@ -13,7 +13,7 @@ Usage:
     pip install nba_api pandas
     python nba_data_collector.py
 
-Estimated run time: 2–6 hours (due to rate-limiting delays).
+Estimated run time: 2-6 hours (due to rate-limiting delays).
 You can run it in sections by toggling the COLLECT_* flags below.
 """
 
@@ -23,7 +23,7 @@ import logging
 import pandas as pd
 from datetime import datetime
 
-# ── nba_api imports ────────────────────────────────────────────────────────
+# nba_api imports
 from nba_api.stats.static import players as static_players, teams as static_teams
 from nba_api.stats.endpoints import (
     # League-wide player stats
@@ -63,9 +63,7 @@ from nba_api.stats.endpoints import (
     CommonPlayoffSeries,
 )
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  CONFIG – toggle sections on/off and choose seasons to collect
-# ═══════════════════════════════════════════════════════════════════════════
+#  CONFIG - toggle sections on/off and choose seasons to collect
 
 SEASONS = [
     "2019-20", "2020-21", "2021-22",
@@ -77,7 +75,7 @@ COLLECT_STATIC_DATA         = False   # players list, teams list, draft history 
 COLLECT_LEAGUE_SEASON_STATS = False  # season-level aggregated stats per season + season type (Done)
 COLLECT_PLAYER_GAME_LOGS    = False   # every player's game-by-game log (bulk) (Done)
 COLLECT_TEAM_GAME_LOGS      = False   # every team's game-by-game log (bulk) (Done)
-COLLECT_BOX_SCORES          = False   # per-game box scores (slow – most data) (Failed)
+COLLECT_BOX_SCORES          = False   # per-game box scores (slow - most data) (Failed)
 COLLECT_PLAYER_PROFILES     = False   # career stats + bio for active players
 COLLECT_ROSTER_DATA         = False   # team rosters per season
 COLLECT_PLAYOFF_DATA        = False   # playoff-specific stats + series results
@@ -85,9 +83,7 @@ COLLECT_PLAYOFF_DATA        = False   # playoff-specific stats + series results
 DELAY = 2         # seconds between API calls (respect rate limits)
 OUTPUT_DIR = "../../../../../../../year 3/Semester B/מחט בערמת דאטה/NBA_Data/nba_data"  # root folder for all saved CSVs
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  SETUP
-# ═══════════════════════════════════════════════════════════════════════════
 
 logging.basicConfig(
     level=logging.INFO,
@@ -109,7 +105,7 @@ def save(df: pd.DataFrame, path: str, label: str = "") -> None:
     """Save a DataFrame to CSV, creating parent dirs as needed."""
     mkdir(os.path.dirname(path))
     df.to_csv(path, index=False)
-    log.info(f"  ✓  Saved {label or os.path.basename(path)}  ({len(df):,} rows)  →  {path}")
+    log.info(f"  Saved {label or os.path.basename(path)}  ({len(df):,} rows)  ->  {path}")
 
 
 def safe_call(fn, *args, retries: int = 4, **kwargs):
@@ -121,31 +117,29 @@ def safe_call(fn, *args, retries: int = 4, **kwargs):
             return fn(*args, **kwargs)
 
         except TypeError as e:
-            log.error(f"❌ Bad arguments for {fn.__name__}: {e}")
+            log.error(f"Bad arguments for {fn.__name__}: {e}")
             return None  # do NOT retry
 
         except Exception as exc:
             wait = 10 * (2 ** attempt)
             log.warning(
-                f"⚠ {fn.__name__} failed (attempt {attempt+1}): {exc}. "
-                f"Retrying in {wait}s…"
+                f"{fn.__name__} failed (attempt {attempt+1}): {exc}. "
+                f"Retrying in {wait}s..."
             )
             time.sleep(wait)
 
-    log.error(f"✗ All retries exhausted for {fn.__name__}")
+    log.error(f"All retries exhausted for {fn.__name__}")
     return None
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  1.  STATIC / REFERENCE DATA
-# ═══════════════════════════════════════════════════════════════════════════
 
 def collect_static_data():
     log.info("━━━  [1/8] Static Reference Data  ━━━")
     base = mkdir(f"{OUTPUT_DIR}/reference")
 
     # Draft history (all years)
-    log.info("  Fetching draft history…")
+    log.info("  Fetching draft history...")
     result = safe_call(
         DraftHistory,
         league_id="00"
@@ -162,9 +156,7 @@ def collect_static_data():
     save(pd.DataFrame(all_teams), f"{base}/all_teams.csv", "all teams")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  2.  LEAGUE-WIDE SEASON STATS  (per season, regular + playoffs)
-# ═══════════════════════════════════════════════════════════════════════════
 
 def collect_league_season_stats():
     log.info("━━━  [2/8] League-Wide Season Stats  ━━━")
@@ -176,7 +168,7 @@ def collect_league_season_stats():
         for season_type in ["Regular Season", "Playoffs"]:
             st_slug = season_type.replace(" ", "_").lower()
 
-            # ── Traditional player stats (Base, Advanced, Usage, Defense) ──
+            # Traditional player stats (Base, Advanced, Usage, Defense)
             for measure in ["Base", "Advanced", "Usage", "Defense", "Scoring"]:
                 result = safe_call(
                     LeagueDashPlayerStats,
@@ -192,7 +184,7 @@ def collect_league_season_stats():
                     save(df, f"{base}/player_stats_{st_slug}_{measure.lower()}.csv",
                          f"player {measure} {season_type}")
 
-            # ── Bio stats (age, height, weight, country, college) ──
+            # Bio stats (age, height, weight, country, college)
             result = safe_call(
                 LeagueDashPlayerBioStats,
                 season=season,
@@ -204,7 +196,7 @@ def collect_league_season_stats():
                 save(result.get_data_frames()[0],
                      f"{base}/player_bio_{st_slug}.csv", f"player bio {season_type}")
 
-            # ── Hustle stats (screens, deflections, loose balls, charges) ──
+            # Hustle stats (screens, deflections, loose balls, charges)
             result = safe_call(
                 LeagueHustleStatsPlayer,
                 season=season,
@@ -215,7 +207,7 @@ def collect_league_season_stats():
                 save(result.get_data_frames()[0],
                      f"{base}/player_hustle_{st_slug}.csv", f"player hustle {season_type}")
 
-            # ── Clutch stats ──
+            # Clutch stats
             result = safe_call(
                 LeagueDashPlayerClutch,
                 season=season,
@@ -231,7 +223,7 @@ def collect_league_season_stats():
                 save(result.get_data_frames()[0],
                      f"{base}/player_clutch_{st_slug}.csv", f"player clutch {season_type}")
 
-            # ── Player estimated metrics (RAPTOR-style) ──
+            # Player estimated metrics (RAPTOR-style)
             result = safe_call(
                 PlayerEstimatedMetrics,
                 league_id="00",
@@ -243,7 +235,7 @@ def collect_league_season_stats():
                      f"{base}/player_estimated_metrics_{st_slug}.csv",
                      f"player estimated metrics {season_type}")
 
-            # ── Team stats (Base, Advanced, Defense, Scoring) ──
+            # Team stats (Base, Advanced, Defense, Scoring)
             for measure in ["Base", "Advanced", "Defense", "Scoring"]:
                 result = safe_call(
                     LeagueDashTeamStats,
@@ -259,7 +251,7 @@ def collect_league_season_stats():
                          f"{base}/team_stats_{st_slug}_{measure.lower()}.csv",
                          f"team {measure} {season_type}")
 
-            # ── Team estimated metrics ──
+            # Team estimated metrics
             result = safe_call(
                 TeamEstimatedMetrics,
                 league_id="00",
@@ -271,7 +263,7 @@ def collect_league_season_stats():
                      f"{base}/team_estimated_metrics_{st_slug}.csv",
                      f"team estimated metrics {season_type}")
 
-            # ── Standings ──
+            # Standings
             result = safe_call(
                 LeagueStandingsV3,
                 league_id="00",
@@ -283,9 +275,7 @@ def collect_league_season_stats():
                      f"{base}/standings_{st_slug}.csv", f"standings {season_type}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  3.  PLAYER GAME LOGS  (every game, every player, bulk endpoint)
-# ═══════════════════════════════════════════════════════════════════════════
 
 def collect_player_game_logs():
     log.info("━━━  [3/8] Player Game Logs  ━━━")
@@ -312,9 +302,7 @@ def collect_player_game_logs():
                          f"player gamelogs {measure} {season} {season_type}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  4.  TEAM GAME LOGS
-# ═══════════════════════════════════════════════════════════════════════════
 
 def collect_team_game_logs():
     log.info("━━━  [4/8] Team Game Logs  ━━━")
@@ -341,9 +329,7 @@ def collect_team_game_logs():
                          f"team gamelogs {measure} {season} {season_type}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  5.  BOX SCORES  (Traditional + Advanced, per game)
-# ═══════════════════════════════════════════════════════════════════════════
 
 def _get_all_game_ids(season: str, season_type: str) -> list:
     """Return a sorted, deduplicated list of game IDs for a season."""
@@ -371,7 +357,7 @@ def collect_box_scores():
             st_slug = season_type.replace(" ", "_").lower()
             base = mkdir(f"{OUTPUT_DIR}/box_scores/{season}")
 
-            log.info(f"  Fetching game IDs: {season} {season_type}…")
+            log.info(f"  Fetching game IDs: {season} {season_type}...")
             game_ids = _get_all_game_ids(season, season_type)
             log.info(f"  Found {len(game_ids)} games")
 
@@ -379,7 +365,7 @@ def collect_box_scores():
 
             for i, game_id in enumerate(game_ids):
                 if i % 50 == 0:
-                    log.info(f"    Box scores: {i}/{len(game_ids)} games…")
+                    log.info(f"  Box scores: {i}/{len(game_ids)} games...")
 
                 # Traditional box score
                 res = safe_call(BoxScoreTraditionalV3, game_id=game_id)
@@ -420,23 +406,21 @@ def collect_box_scores():
                      f"misc box scores {season} {season_type}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-#  6.  PLAYER PROFILES  (career stats, bio, awards – active players only)
-# ═══════════════════════════════════════════════════════════════════════════
+#  6.  PLAYER PROFILES  (career stats, bio, awards - active players only)
 
 def collect_player_profiles():
     log.info("━━━  [6/8] Player Profiles (active players)  ━━━")
     base = mkdir(f"{OUTPUT_DIR}/player_profiles")
 
     active = [p for p in static_players.get_players() if p["is_active"]]
-    log.info(f"  Collecting profiles for {len(active)} active players…")
+    log.info(f"  Collecting profiles for {len(active)} active players...")
 
     bio_rows, career_rows, award_rows = [], [], []
 
     for i, player in enumerate(active):
         pid = player["id"]
         if i % 50 == 0:
-            log.info(f"    Profiles: {i}/{len(active)}…")
+            log.info(f"  Profiles: {i}/{len(active)}...")
 
         # Bio (height, weight, country, position, draft, college)
         res = safe_call(CommonPlayerInfo, player_id=pid)
@@ -472,9 +456,7 @@ def collect_player_profiles():
              f"{base}/player_awards.csv", "player awards")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  7.  ROSTER DATA  (who was on each team each season)
-# ═══════════════════════════════════════════════════════════════════════════
 
 def collect_roster_data():
     log.info("━━━  [7/8] Team Rosters  ━━━")
@@ -501,7 +483,7 @@ def collect_roster_data():
              f"{base}/all_rosters.csv", "all team rosters")
 
     # Also save team year-by-year records
-    log.info("  Team year-by-year stats…")
+    log.info("  Team year-by-year stats...")
     yby_rows = []
     for team in all_teams:
         res = safe_call(TeamYearByYearStats, team_id=team["id"], per_mode_simple="PerGame")
@@ -515,9 +497,7 @@ def collect_roster_data():
              f"{base}/team_year_by_year.csv", "team year-by-year")
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  8.  PLAYOFF-SPECIFIC DATA
-# ═══════════════════════════════════════════════════════════════════════════
 
 def collect_playoff_data():
     log.info("━━━  [8/8] Playoff Data  ━━━")
@@ -537,14 +517,12 @@ def collect_playoff_data():
 
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 #  MAIN
-# ═══════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     start = datetime.now()
     log.info("=" * 60)
-    log.info("NBA Data Collector — starting")
+    log.info("NBA Data Collector - starting")
     log.info(f"Seasons: {SEASONS}")
     log.info(f"Output:  {os.path.abspath(OUTPUT_DIR)}/")
     log.info("=" * 60)
@@ -577,6 +555,6 @@ if __name__ == "__main__":
 
     elapsed = datetime.now() - start
     log.info("=" * 60)
-    log.info(f"✅  Done!  Total time: {elapsed}")
+    log.info(f"Done! Total time: {elapsed}")
     log.info(f"Data saved in: {os.path.abspath(OUTPUT_DIR)}/")
     log.info("=" * 60)

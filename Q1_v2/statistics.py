@@ -1,6 +1,4 @@
 """
-statistics.py
-=============
 Statistical tests that answer the research sub-questions:
 
   Q: Does fatigue (back-to-back) significantly reduce scoring?
@@ -72,7 +70,7 @@ class StatisticalAnalyzer:
         self.df["__error"] = np.abs(predictions - df_test["PTS"].values)
         self.results: list[TestResult] = []
 
-    # ── Test 1: Does fatigue affect scoring? ──────────────────────────────────
+    # Test 1: Does fatigue affect scoring?
 
     def test_fatigue_effect(self) -> Optional[TestResult]:
         """
@@ -81,7 +79,7 @@ class StatisticalAnalyzer:
 
         WHY the MIN filter matters:
         Without it, the naive result is often that B2B players score MORE
-        than rested players — a selection bias artefact.  Stars play more
+        than rested players - a selection bias artefact.  Stars play more
         total games (hence more B2Bs) AND score more, so the raw B2B group
         is inflated by high-usage players.  Restricting to MIN > 20 ensures
         we compare meaningful starters-level performances, not garbage-time
@@ -92,7 +90,7 @@ class StatisticalAnalyzer:
         This eliminates the between-player confound entirely.
         """
         if "is_back_to_back" not in self.df.columns:
-            logger.warning("  is_back_to_back not in data — skipping fatigue test")
+            logger.warning("  is_back_to_back not in data - skipping fatigue test")
             return None
 
         # Filter to meaningful playing time only
@@ -101,16 +99,16 @@ class StatisticalAnalyzer:
             df_starters = self.df[self.df[min_col] > 20].copy()
         else:
             df_starters = self.df.copy()
-            logger.warning("  MIN column not found — fatigue test uses all rows")
+            logger.warning("  MIN column not found - fatigue test uses all rows")
 
         b2b    = df_starters.loc[df_starters["is_back_to_back"] == 1, "PTS"].dropna().values
         rested = df_starters.loc[df_starters["is_back_to_back"] == 0, "PTS"].dropna().values
 
         if len(b2b) < 30 or len(rested) < 30:
-            logger.warning(f"  Too few B2B rows after MIN>20 filter ({len(b2b)}) — skipping")
+            logger.warning(f"  Too few B2B rows after MIN>20 filter ({len(b2b)}) - skipping")
             return None
 
-        # ── Within-player paired test ──────────────────────────────────────────
+        # Within-player paired test
         # For each player compute mean B2B PTS − mean rested PTS
         pid_col = "PLAYER_ID"
         paired_diffs = []
@@ -153,15 +151,15 @@ class StatisticalAnalyzer:
                        test_type, float(t_stat), float(p_val), d, "Cohen's d",
                        ci_lo, ci_hi, sig, interp)
         self.results.append(r)
-        logger.info(f"  Fatigue test: t={t_stat:.2f}, p={p_val:.4f}, d={d:.3f} — {interp}")
+        logger.info(f"  Fatigue test: t={t_stat:.2f}, p={p_val:.4f}, d={d:.3f} - {interp}")
         return r
 
-    # ── Test 2: Does opponent defense affect prediction error? ────────────────
+    # Test 2: Does opponent defense affect prediction error?
 
     def test_opponent_defense_effect(self) -> Optional[TestResult]:
         """
         Do players have higher absolute prediction error against tough defenses?
-        Split by median opp def rating → weak vs strong defense.
+        Split by median opp def rating -> weak vs strong defense.
         """
         opp_col = "opp_def_rating_roll5"
         if opp_col not in self.df.columns:
@@ -191,12 +189,12 @@ class StatisticalAnalyzer:
         logger.info(f"  Opponent defense test: {interp}")
         return r
 
-    # ── Test 3: Are high-volume scorers harder to predict? ────────────────────
+    # Test 3: Are high-volume scorers harder to predict?
 
     def test_scoring_tier_predictability(self) -> Optional[TestResult]:
         """
         ANOVA: does absolute prediction error differ across scoring tiers?
-        Tiers: role player (<8 ppg), contributor (8–14), starter (14–20), star (20+).
+        Tiers: role player (<8 ppg), contributor (8-14), starter (14-20), star (20+).
         """
         if "season_avg_pts" not in self.df.columns:
             return None
@@ -235,7 +233,7 @@ class StatisticalAnalyzer:
         logger.info(f"  Scoring tier test: {interp}")
         return r
 
-    # ── Test 4: Home vs Away error ────────────────────────────────────────────
+    # Test 4: Home vs Away error
 
     def test_home_away_error(self) -> Optional[TestResult]:
         """Are home games easier to predict than away games?"""
@@ -264,7 +262,7 @@ class StatisticalAnalyzer:
         logger.info(f"  Home/away test: {interp}")
         return r
 
-    # ── Run all tests ────────────────────────────────────────────────────────
+    # Run all tests
 
     def run_all(self) -> pd.DataFrame:
         self.test_fatigue_effect()
@@ -278,7 +276,7 @@ class StatisticalAnalyzer:
             "Statistic":    round(r.stat_value, 3),
             "p-value":      f"{r.p_value:.4f}",
             "Effect size":  f"{r.effect_size:.3f} ({r.effect_label})",
-            "Significant":  "✓" if r.significant else "✗",
+            "Significant":  "Yes" if r.significant else "No",
             "Interpretation": r.interpretation,
         } for r in self.results]
 

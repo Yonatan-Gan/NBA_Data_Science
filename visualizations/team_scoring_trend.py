@@ -12,7 +12,7 @@ from pathlib import Path
 
 FIG_DIR = Path("figures"); FIG_DIR.mkdir(exist_ok=True)
 
-# ── Build season averages ────────────────────────────────────────────────────
+# Build season averages
 df = pd.read_csv("data/processed/q1_player_game_logs.csv",
                  usecols=["GAME_ID", "TEAM_ID", "SEASON", "PTS"],
                  low_memory=False)
@@ -28,7 +28,7 @@ avg = avg.sort_values("SEASON")
 seasons = avg["SEASON"].astype(int).tolist()
 scores  = avg["AVG_PTS"].tolist()
 
-# ── Style ────────────────────────────────────────────────────────────────────
+# Style
 plt.rcParams.update({
     "font.family":       "DejaVu Sans",
     "axes.spines.top":   False,
@@ -57,7 +57,7 @@ ax.plot(x, scores, color=LINE_COLOR, linewidth=2.8, zorder=3)
 ax.scatter(x, scores, color="white", edgecolor=DOT_COLOR,
            s=80, linewidth=2.2, zorder=4)
 
-# ── Annotate a few notable moments ──────────────────────────────────────────
+# Annotate a few notable moments
 notable = {
     # (label, color, side, x_offset for text)
     2011: ("Lockout-shortened\nseason", ANNOT_DN, "above", 0.0),
@@ -79,7 +79,7 @@ for season, (label, color, side, x_offset) in notable.items():
                             lw=1.3, connectionstyle="arc3,rad=0"),
         )
 
-# ── Season labels & score labels ─────────────────────────────────────────────
+# Season labels & score labels
 ax.set_xticks(x)
 ax.set_xticklabels([str(s) for s in seasons], rotation=45, ha="right", fontsize=10.5)
 
@@ -88,7 +88,7 @@ for xi, yi in zip(x, scores):
     ax.text(xi, yi + 0.55, f"{yi:.1f}", ha="center", va="bottom",
             fontsize=8, color=DOT_COLOR, fontweight="bold")
 
-# ── Axes ─────────────────────────────────────────────────────────────────────
+# Axes
 ax.set_ylim(88, 118)
 ax.set_xlim(-0.5, len(x) - 0.5)
 ax.set_ylabel("Average Points per Game", fontsize=12, labelpad=10)
@@ -110,7 +110,7 @@ fig.text(0.005, 0.5, "Average Points per Game",
 
 ax.set_xlabel("Season", fontsize=12, labelpad=10)
 
-# ── % increase callout ───────────────────────────────────────────────────────
+# % increase callout
 pct = (scores[-1] - scores[0]) / scores[0] * 100
 ax.text(0.985, 0.06,
         f"+{pct:.0f}% scoring increase\nsince 2003",
@@ -118,14 +118,14 @@ ax.text(0.985, 0.06,
         fontsize=12, fontweight="bold", color=ANNOT_UP,
         bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="#bbf7d0", linewidth=1.5))
 
-# ── Title / subtitle ─────────────────────────────────────────────────────────
+# Title / subtitle
 fig.suptitle("NBA Teams Are Scoring More Than Ever",
              fontsize=19, fontweight="bold", y=0.98)
 fig.text(0.5, 0.915,
-         "Average points scored per team per game · Regular season · 2003–2022",
+         "Average points scored per team per game · Regular season · 2003-2022",
          ha="center", fontsize=11, color="#555")
 
 plt.subplots_adjust(left=0.06, right=0.97, top=0.87, bottom=0.13)
 fig.savefig(FIG_DIR / "team_scoring_trend.png", dpi=150, bbox_inches="tight")
 plt.close(fig)
-print("✓  saved figures/team_scoring_trend.png")
+print("saved figures/team_scoring_trend.png")

@@ -5,27 +5,27 @@ NBA Data Collection & Feature Engineering Pipeline
 Downloads three Kaggle datasets and produces analysis-ready CSVs for:
 
   Q1  Player next-game performance prediction
-      → data/processed/q1_player_game_logs.csv   (game-level rows, rolling features)
+      -> data/processed/q1_player_game_logs.csv   (game-level rows, rolling features)
 
   Q2  Team chemistry from roster composition
-      → data/processed/q2_team_season.csv         (team-season aggregates)
-      → data/processed/q2_player_attributes.csv   (player-level bio + advanced stats)
+      -> data/processed/q2_team_season.csv         (team-season aggregates)
+      -> data/processed/q2_player_attributes.csv   (player-level bio + advanced stats)
 
   Q3  Playoff vs. regular-season performance
-      → data/processed/q3_player_split_wide.csv   (one row per player-season, REG vs POF columns)
-      → data/processed/q3_game_logs_typed.csv      (raw game logs with GAME_TYPE label)
+      -> data/processed/q3_player_split_wide.csv   (one row per player-season, REG vs POF columns)
+      -> data/processed/q3_game_logs_typed.csv      (raw game logs with GAME_TYPE label)
 
 Datasets used
-  nathanlauga/nba-games       – per-game player box scores + team standings
-  wyattowalsh/basketball      – SQLite with draft history, player bio, advanced
-  drgilermo/nba-players-stats – season-level advanced metrics (PER, WS, VORP…)
+  nathanlauga/nba-games       - per-game player box scores + team standings
+  wyattowalsh/basketball      - SQLite with draft history, player bio, advanced
+  drgilermo/nba-players-stats - season-level advanced metrics (PER, WS, VORP...)
 
 Usage
   pip install -r requirements.txt
   # Auth (either one works):
-  #   A) ~/.kaggle/access_token   containing your KGAT_… token
-  #   B) ~/.kaggle/kaggle.json    containing {"username":…,"key":…}
-  #   C) export KAGGLE_API_TOKEN=KGAT_…
+  #   A) ~/.kaggle/access_token   containing your KGAT_... token
+  #   B) ~/.kaggle/kaggle.json    containing {"username":...,"key":...}
+  #   C) export KAGGLE_API_TOKEN=KGAT_...
   python fetch_nba_data.py
 """
 
@@ -37,7 +37,7 @@ import sqlite3
 import shutil
 from pathlib import Path
 
-# ── 0. Bootstrap dependencies ─────────────────────────────────────────────────
+# 0. Bootstrap dependencies
 
 REQUIRED = {
     "pandas":    "pandas>=2.0.0",
@@ -57,7 +57,7 @@ def _ensure_packages():
     if missing:
         print(f"Installing: {missing}")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", *missing])
-        print("Done. Re-running script…")
+        print("Done. Re-running script...")
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 _ensure_packages()
@@ -66,7 +66,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
-# ── 1. Directories ────────────────────────────────────────────────────────────
+# 1. Directories
 
 BASE = Path(__file__).parent
 RAW  = BASE / "data" / "raw"
@@ -75,8 +75,8 @@ PROC = BASE / "data" / "processed"
 for d in (RAW, PROC):
     d.mkdir(parents=True, exist_ok=True)
 
-# ── 2. Kaggle auth ────────────────────────────────────────────────────────────
-# kagglehub reads KAGGLE_API_TOKEN (the newer KGAT_… format) automatically.
+# 2. Kaggle auth
+# kagglehub reads KAGGLE_API_TOKEN (the newer KGAT_... format) automatically.
 # We load it from ~/.kaggle/access_token if the env var isn't already set.
 
 def _setup_kaggle_auth():
@@ -101,25 +101,22 @@ def _setup_kaggle_auth():
         os.environ.setdefault("KAGGLE_KEY",      creds["key"])
         return
 
-    print("""
-╔══════════════════════════════════════════════════════════════════╗
-║  No Kaggle credentials found.                                    ║
-║                                                                  ║
-║  Save your KGAT_… token:                                         ║
-║    mkdir -p ~/.kaggle                                            ║
-║    echo YOUR_KGAT_TOKEN > ~/.kaggle/access_token                 ║
-║    chmod 600 ~/.kaggle/access_token                              ║
-╚══════════════════════════════════════════════════════════════════╝
-""")
+    print(
+        "No Kaggle credentials found.\n"
+        "Save your KGAT token:\n"
+        "  mkdir -p ~/.kaggle\n"
+        "  echo YOUR_KGAT_TOKEN > ~/.kaggle/access_token\n"
+        "  chmod 600 ~/.kaggle/access_token"
+    )
     sys.exit(1)
 
 _setup_kaggle_auth()
 
-import kagglehub  # noqa: E402 — must come after env var is set
+import kagglehub  # noqa: E402, must come after env var is set
 
-print(f"✓  Kaggle credentials loaded\n")
+print("Kaggle credentials loaded\n")
 
-# ── 3. Download datasets ──────────────────────────────────────────────────────
+# 3. Download datasets
 # kagglehub caches downloads in ~/.cache/kagglehub/; we copy to data/raw/
 # so the project is self-contained.
 
@@ -132,10 +129,10 @@ DATASETS = {
 def _download(name: str, slug: str):
     dest = RAW / name
     if dest.exists() and any(dest.iterdir()):
-        print(f"  '{name}'  already present — skip")
+        print(f"  '{name}'  already present - skip")
         return
     dest.mkdir(parents=True, exist_ok=True)
-    print(f"  Downloading  {slug} …")
+    print(f"  Downloading  {slug} ...")
     cache_path = kagglehub.dataset_download(slug)
     # Copy from kagglehub cache into data/raw/<name>/
     for item in Path(cache_path).iterdir():
@@ -144,14 +141,14 @@ def _download(name: str, slug: str):
             shutil.copytree(item, target, dirs_exist_ok=True)
         else:
             shutil.copy2(item, target)
-    print(f"  ✓  {name}  ({len(list(dest.iterdir()))} files)")
+    print(f"  {name}  ({len(list(dest.iterdir()))} files)")
 
-print("── Downloading ─────────────────────────────────────────")
+print("Downloading")
 for _name, _slug in DATASETS.items():
     _download(_name, _slug)
 print()
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# Helpers
 
 def read_csv(path: Path, **kw) -> pd.DataFrame:
     """Read CSV with automatic encoding fallback."""
@@ -182,21 +179,19 @@ def _find_col(cols: list, *candidates):
     return None
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Q1 — Player next-game performance prediction
-# ═════════════════════════════════════════════════════════════════════════════
+# Q1 - Player next-game performance prediction
 
-print("── Q1: player prediction dataset ──────────────────────")
+print("Q1: player prediction dataset")
 
-# ── Load raw sources ──────────────────────────────────────────────────────────
+# Load raw sources
 
 games   = read_csv(RAW / "nba_games" / "games.csv", parse_dates=["GAME_DATE_EST"],
                    low_memory=False)
 details = read_csv(RAW / "nba_games" / "games_details.csv", low_memory=False)
 
-# ── Clean details ─────────────────────────────────────────────────────────────
+# Clean details
 
-# MIN comes as "32:45" or numeric — convert to minutes played
+# MIN comes as "32:45" or numeric - convert to minutes played
 details["MIN"] = (
     details["MIN"].astype(str)
     .str.split(":").str[0]
@@ -216,7 +211,7 @@ for col in NUM_COLS:
 
 details = details.dropna(subset=["PLAYER_ID", "GAME_ID", "PTS"])
 
-# ── Merge game metadata into player logs ─────────────────────────────────────
+# Merge game metadata into player logs
 
 GAME_META = ["GAME_ID", "GAME_DATE_EST", "SEASON",
              "HOME_TEAM_ID", "VISITOR_TEAM_ID", "HOME_TEAM_WINS"]
@@ -232,7 +227,7 @@ df["OPP_TEAM_ID"] = np.where(
 )
 df = df.sort_values(["PLAYER_ID", "GAME_DATE_EST"]).reset_index(drop=True)
 
-# ── Rolling features (last 5 / 10 games, using only past games) ───────────────
+# Rolling features (last 5 / 10 games, using only past games)
 
 ROLL_STATS = [c for c in NUM_COLS if c in df.columns]
 
@@ -244,21 +239,21 @@ def _add_rolling(group: pd.DataFrame) -> pd.DataFrame:
         g[f"L10_{stat}"] = shifted.rolling(10, min_periods=1).mean()
     return g
 
-print("  Computing rolling averages …")
+print("  Computing rolling averages ...")
 df = (
     df.groupby("PLAYER_ID", group_keys=False)
       .apply(_add_rolling)
       .reset_index(drop=True)
 )
 
-# ── Rest & fatigue features ───────────────────────────────────────────────────
+# Rest & fatigue features
 
 df["PREV_DATE"]    = df.groupby("PLAYER_ID")["GAME_DATE_EST"].shift(1)
 df["DAYS_REST"]    = (df["GAME_DATE_EST"] - df["PREV_DATE"]).dt.days
 df["BACK_TO_BACK"] = (df["DAYS_REST"] == 1).astype("int8")
 df["DAYS_REST"]    = df["DAYS_REST"].fillna(7).clip(upper=14)  # cap at 14
 
-# ── Opponent defensive strength ───────────────────────────────────────────────
+# Opponent defensive strength
 # Proxy: average PTS that the opponent team concedes per player per season.
 
 opp_pts_allowed = (
@@ -286,7 +281,7 @@ df = df.merge(
     suffixes=("", "_dup"),
 ).drop(columns=[c for c in df.columns if c.endswith("_dup")])
 
-# ── Season-to-date averages (expanding, shifted to avoid leakage) ─────────────
+# Season-to-date averages (expanding, shifted to avoid leakage)
 
 def _season_avg(group: pd.DataFrame) -> pd.DataFrame:
     g = group.sort_values("GAME_DATE_EST")
@@ -294,14 +289,14 @@ def _season_avg(group: pd.DataFrame) -> pd.DataFrame:
         g[f"STD_{stat}"] = g[stat].shift(1).expanding().mean()
     return g
 
-print("  Computing season-to-date averages …")
+print("  Computing season-to-date averages ...")
 df = (
     df.groupby(["PLAYER_ID", "SEASON"], group_keys=False)
       .apply(_season_avg)
       .reset_index(drop=True)
 )
 
-# ── Assemble Q1 output ────────────────────────────────────────────────────────
+# Assemble Q1 output
 
 ID_COLS  = ["GAME_ID", "PLAYER_ID", "PLAYER_NAME", "TEAM_ID",
             "GAME_DATE_EST", "SEASON"]
@@ -313,15 +308,13 @@ FEAT_COLS = (
 
 q1 = df[ID_COLS + TGT_COLS + FEAT_COLS].dropna(subset=["PTS"])
 q1.to_csv(PROC / "q1_player_game_logs.csv", index=False)
-print(f"  ✓  q1_player_game_logs.csv    {len(q1):>8,} rows  ×  {q1.shape[1]} cols")
+print(f"  q1_player_game_logs.csv    {len(q1):>8,} rows  ×  {q1.shape[1]} cols")
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Q2 — Team chemistry from roster composition
-# ═════════════════════════════════════════════════════════════════════════════
+# Q2 - Team chemistry from roster composition
 
-print("\n── Q2: team chemistry dataset ──────────────────────────")
+print("\nQ2: team chemistry dataset")
 
-# ── Load drgilermo seasonal stats ────────────────────────────────────────────
+# Load drgilermo seasonal stats
 
 season_stats = read_csv(RAW / "player_stats" / "Seasons_Stats.csv",
                         index_col=0, low_memory=False)
@@ -331,13 +324,13 @@ season_stats["Year"] = pd.to_numeric(season_stats["Year"], errors="coerce").drop
 # Drop mid-season-trade duplicate total rows (Tm == "TOT")
 season_stats = season_stats[season_stats["Tm"] != "TOT"].copy()
 
-# ── Load player bio ───────────────────────────────────────────────────────────
+# Load player bio
 
 bio = read_csv(RAW / "player_stats" / "player_data.csv")
 bio.columns = bio.columns.str.lower().str.replace(" ", "_")
 bio["birth_year"] = pd.to_datetime(bio.get("birth_date", ""), errors="coerce").dt.year
 
-# ── Try to load draft history & nationality from SQLite ──────────────────────
+# Try to load draft history & nationality from SQLite
 
 db_path = next(
     (p for ext in ("*.sqlite", "*.db") for p in (RAW / "basketball").glob(ext)),
@@ -372,9 +365,9 @@ if db_path:
 
     con.close()
 else:
-    print("  WARNING: basketball.sqlite not found — nationality & draft from CSV fallback")
+    print("  WARNING: basketball.sqlite not found - nationality & draft from CSV fallback")
 
-# ── Merge bio into season stats ───────────────────────────────────────────────
+# Merge bio into season stats
 
 q2p = season_stats.merge(
     bio[["name", "birth_year", "college", "height", "weight", "position"]].rename(
@@ -422,7 +415,7 @@ for col in ("draft_pick", "draft_round", "PER", "WS", "VORP", "BPM",
 if "PER" in q2p.columns:
     q2p["is_star"] = (q2p["PER"].fillna(0) > 20).astype("int8")
 
-# ── Save player-level Q2 file ─────────────────────────────────────────────────
+# Save player-level Q2 file
 
 PLAYER_COLS = [
     "Player", "Tm", "Year", "Pos", "age_computed", "experience",
@@ -436,9 +429,9 @@ for opt in ("nationality", "draft_round", "draft_pick", "is_star"):
 
 q2_players = q2p[[c for c in PLAYER_COLS if c in q2p.columns]].copy()
 q2_players.to_csv(PROC / "q2_player_attributes.csv", index=False)
-print(f"  ✓  q2_player_attributes.csv   {len(q2_players):>8,} rows  ×  {q2_players.shape[1]} cols")
+print(f"  q2_player_attributes.csv   {len(q2_players):>8,} rows  ×  {q2_players.shape[1]} cols")
 
-# ── Aggregate to team-season ──────────────────────────────────────────────────
+# Aggregate to team-season
 
 agg_spec: dict = {}
 for col, fns in [
@@ -492,7 +485,7 @@ if "is_star" in q2p.columns:
     )
     team_season = team_season.merge(sc, on=["Tm", "Year"], how="left")
 
-# ── Merge win % from nathanlauga rankings ────────────────────────────────────
+# Merge win % from nathanlauga rankings
 
 ranking_path = RAW / "nba_games" / "ranking.csv"
 if ranking_path.exists():
@@ -533,22 +526,20 @@ if ranking_path.exists():
         ).drop(columns=["SEASON_YEAR"], errors="ignore")
 
 team_season.to_csv(PROC / "q2_team_season.csv", index=False)
-print(f"  ✓  q2_team_season.csv          {len(team_season):>8,} rows  ×  {team_season.shape[1]} cols")
+print(f"  q2_team_season.csv          {len(team_season):>8,} rows  ×  {team_season.shape[1]} cols")
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Q3 — Playoff vs. regular-season performance
-# ═════════════════════════════════════════════════════════════════════════════
+# Q3 - Playoff vs. regular-season performance
 
-print("\n── Q3: playoff vs. regular-season dataset ──────────────")
+print("\nQ3: playoff vs. regular-season dataset")
 
-# ── Classify each game as Regular Season or Playoffs ─────────────────────────
+# Classify each game as Regular Season or Playoffs
 #
 # Strategy (in order of preference):
 #   A. wyattowalsh SQLite: season_id prefix ('2' = regular, '4' = playoffs)
 #   B. nathanlauga games.csv: approximate by calendar month
-#      (Oct–Mar = regular season, Apr–Jun = playoffs)
+#      (Oct-Mar = regular season, Apr-Jun = playoffs)
 
-game_type_map = None  # GAME_ID → "Regular Season" | "Playoffs"
+game_type_map = None  # GAME_ID -> "Regular Season" | "Playoffs"
 
 if db_path:
     con = sqlite3.connect(str(db_path))
@@ -594,9 +585,9 @@ if game_type_map is None:
         .set_index("GAME_ID")["GAME_TYPE"]
         .to_dict()
     )
-    print("  Game type approximated by calendar month (Apr–Jun = Playoffs)")
+    print("  Game type approximated by calendar month (Apr-Jun = Playoffs)")
 
-# ── Build typed game-log file ─────────────────────────────────────────────────
+# Build typed game-log file
 
 details_q3 = details.merge(
     game_meta[["GAME_ID", "GAME_DATE_EST", "SEASON"]].drop_duplicates("GAME_ID"),
@@ -614,7 +605,7 @@ STAT_COLS = [c for c in NUM_COLS if c in details_q3.columns]
 # Filter to meaningful games (played some minutes)
 details_q3 = details_q3[details_q3["MIN"].fillna(0) >= 1].copy()
 
-# Long file — all game logs with type label
+# Long file - all game logs with type label
 q3_long_cols = (
     ["GAME_ID", "PLAYER_ID", "PLAYER_NAME", "TEAM_ID",
      "GAME_DATE_EST", "SEASON", "GAME_TYPE"]
@@ -622,9 +613,9 @@ q3_long_cols = (
 )
 q3_long = details_q3[[c for c in q3_long_cols if c in details_q3.columns]].dropna(subset=["PTS"])
 q3_long.to_csv(PROC / "q3_game_logs_typed.csv", index=False)
-print(f"  ✓  q3_game_logs_typed.csv      {len(q3_long):>8,} rows  ×  {q3_long.shape[1]} cols")
+print(f"  q3_game_logs_typed.csv      {len(q3_long):>8,} rows  ×  {q3_long.shape[1]} cols")
 
-# ── Aggregate per player × season × game_type ────────────────────────────────
+# Aggregate per player × season × game_type
 
 q3_agg = (
     details_q3
@@ -634,7 +625,7 @@ q3_agg = (
 q3_agg.columns = ["_".join(c) for c in q3_agg.columns]
 q3_agg = q3_agg.reset_index()
 
-# Rename *_count columns → games_played (use first stat as proxy)
+# Rename *_count columns -> games_played (use first stat as proxy)
 first_cnt = next((c for c in q3_agg.columns if c.endswith("_count")), None)
 if first_cnt:
     q3_agg = q3_agg.rename(columns={first_cnt: "games_played"})
@@ -642,7 +633,7 @@ if first_cnt:
         columns=[c for c in q3_agg.columns if c.endswith("_count")]
     )
 
-# ── Pivot to wide format (REG_* vs POF_* columns) ────────────────────────────
+# Pivot to wide format (REG_* vs POF_* columns)
 
 reg  = q3_agg[q3_agg["GAME_TYPE"].str.contains("Regular",  na=False)].drop(columns="GAME_TYPE")
 poff = q3_agg[q3_agg["GAME_TYPE"].str.contains("Playoff",  na=False)].drop(columns="GAME_TYPE")
@@ -674,28 +665,22 @@ if "DELTA_PTS" in q3_wide.columns:
     )
 
 q3_wide.to_csv(PROC / "q3_player_split_wide.csv", index=False)
-print(f"  ✓  q3_player_split_wide.csv    {len(q3_wide):>8,} rows  ×  {q3_wide.shape[1]} cols")
+print(f"  q3_player_split_wide.csv    {len(q3_wide):>8,} rows  ×  {q3_wide.shape[1]} cols")
 
-# ═════════════════════════════════════════════════════════════════════════════
 # Summary
-# ═════════════════════════════════════════════════════════════════════════════
 
-print("""
-╔══════════════════════════════════════════════════════════════════════╗
-║  Pipeline complete!                                                  ║
-║                                                                      ║
-║  data/processed/                                                     ║
-║  ├── q1_player_game_logs.csv     ← game logs + rolling features      ║
-║  ├── q2_team_season.csv          ← team-season composition & wins    ║
-║  ├── q2_player_attributes.csv    ← player bio + advanced stats       ║
-║  ├── q3_player_split_wide.csv    ← REG vs POF per player-season      ║
-║  └── q3_game_logs_typed.csv      ← game logs with GAME_TYPE label    ║
-║                                                                      ║
-║  Key columns                                                         ║
-║  Q1  target: PTS/REB/AST/…  features: L5_*, L10_*, STD_*,          ║
-║              IS_HOME, DAYS_REST, BACK_TO_BACK, OPP_AVG_PTS_ALLOWED  ║
-║  Q2  target: W_PCT           features: age_*, experience_*,          ║
-║              PER_*, WS_*, nationality_diversity, star_player_count   ║
-║  Q3  deltas: DELTA_PTS/REB/… DELTA_PCT_*  label: PLAYOFF_TENDENCY   ║
-╚══════════════════════════════════════════════════════════════════════╝
-""")
+print(
+    "Pipeline complete.\n\n"
+    "data/processed/\n"
+    "  q1_player_game_logs.csv     game logs + rolling features\n"
+    "  q2_team_season.csv          team-season composition and wins\n"
+    "  q2_player_attributes.csv    player bio + advanced stats\n"
+    "  q3_player_split_wide.csv    REG vs POF per player-season\n"
+    "  q3_game_logs_typed.csv      game logs with GAME_TYPE label\n\n"
+    "Key columns\n"
+    "  Q1  target: PTS/REB/AST/etc  features: L5_*, L10_*, STD_*,\n"
+    "      IS_HOME, DAYS_REST, BACK_TO_BACK, OPP_AVG_PTS_ALLOWED\n"
+    "  Q2  target: W_PCT           features: age_*, experience_*,\n"
+    "      PER_*, WS_*, nationality_diversity, star_player_count\n"
+    "  Q3  deltas: DELTA_PTS/REB/etc, DELTA_PCT_*  label: PLAYOFF_TENDENCY"
+)

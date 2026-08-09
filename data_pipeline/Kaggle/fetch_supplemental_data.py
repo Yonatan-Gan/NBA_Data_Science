@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Supplemental NBA data — fills gaps in fetch_nba_data.py.
+Supplemental NBA data - fills gaps in fetch_nba_data.py.
 
   Downloads 2 new Kaggle datasets and mines 4 unused SQLite tables.
 
@@ -34,7 +34,7 @@ import subprocess
 import re
 from pathlib import Path
 
-# ── 0. dependencies ──────────────────────────────────────────────────────────
+# 0. dependencies
 REQUIRED = {"pandas": "pandas>=2.0.0", "numpy": "numpy>=1.24.0",
             "kagglehub": "kagglehub", "pyarrow": "pyarrow"}
 
@@ -56,20 +56,20 @@ _ensure_pkgs()
 import pandas as pd
 import numpy as np
 
-# ── 1. paths ─────────────────────────────────────────────────────────────────
+# 1. paths
 BASE = Path(__file__).parent
 RAW  = BASE / "data" / "raw"
 PROC = BASE / "data" / "processed"
 PROC.mkdir(parents=True, exist_ok=True)
 
-# ── 2. Kaggle auth (reuses access_token) ─────────────────────────────────────
+# 2. Kaggle auth (reuses access_token)
 if not os.environ.get("KAGGLE_API_TOKEN"):
     tok = (Path.home() / ".kaggle" / "access_token")
     if tok.exists():
         os.environ["KAGGLE_API_TOKEN"] = tok.read_text().strip()
 import kagglehub  # noqa: E402
 
-# ── 3. Download supplemental Kaggle datasets ─────────────────────────────────
+# 3. Download supplemental Kaggle datasets
 
 SUPP = {
     "seasonal_history": "bendikfltaas/nba-history-seasonal-data-1995-2023",  # fixes Q3
@@ -79,30 +79,28 @@ SUPP = {
 def _download(name: str, slug: str) -> Path:
     dest = RAW / name
     if dest.exists() and any(dest.iterdir()):
-        print(f"  '{name}' already present — skip")
+        print(f"  '{name}' already present - skip")
         return dest
     dest.mkdir(parents=True, exist_ok=True)
-    print(f"  Downloading {slug} …")
+    print(f"  Downloading {slug} ...")
     src = Path(kagglehub.dataset_download(slug))
     for f in src.iterdir():
         if f.is_dir():
             shutil.copytree(f, dest / f.name, dirs_exist_ok=True)
         else:
             shutil.copy2(f, dest / f.name)
-    print(f"  ✓ {name} ({len(list(dest.iterdir()))} files)")
+    print(f"  {name} ({len(list(dest.iterdir()))} files)")
     return dest
 
-print("── Downloading supplemental datasets ───────────────────")
+print("Downloading supplemental datasets")
 for _n, _s in SUPP.items():
     _download(_n, _s)
 print()
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# A.  Q3 FIX  — real regular-vs-playoff player stats (1995-2023)
-# ═════════════════════════════════════════════════════════════════════════════
+# A.  Q3 FIX  - real regular-vs-playoff player stats (1995-2023)
 
-print("── A. Fixing Q3: regular-vs-playoff player stats ───────")
+print("A. Fixing Q3: regular-vs-playoff player stats")
 
 HIST_DIR = RAW / "seasonal_history"
 
@@ -130,7 +128,7 @@ pof_keep = _slim(pof_avg, KEY + PG_STATS).rename(columns={c: f"POF_{c}" for c in
 reg_keep = reg_keep[reg_keep["team_retcon"] != "TOT"]
 pof_keep = pof_keep[pof_keep["team_retcon"] != "TOT"]
 
-# Player-season is the merge key — collapse multi-team rows by summing G and weighting averages
+# Player-season is the merge key - collapse multi-team rows by summing G and weighting averages
 def _collapse(df, prefix):
     """Weighted average by games when the same player appears for >1 team in a season."""
     if df.empty:
@@ -151,7 +149,7 @@ def _collapse(df, prefix):
 reg_one = _collapse(reg_keep, "REG")
 pof_one = _collapse(pof_keep, "POF")
 
-# Outer merge — keep players who played either regular season, playoffs, or both
+# Outer merge - keep players who played either regular season, playoffs, or both
 q3v2 = reg_one.merge(pof_one, on=["Player", "season_start"], how="outer")
 
 # Add delta columns for the most-watched stats
@@ -171,9 +169,9 @@ q3v2["PLAYOFF_TENDENCY"] = pd.cut(
 )
 
 q3v2.to_csv(PROC / "q3_player_split_v2.csv", index=False)
-print(f"  ✓ q3_player_split_v2.csv         {len(q3v2):>7,} rows × {q3v2.shape[1]} cols")
+print(f"  q3_player_split_v2.csv         {len(q3v2):>7,} rows × {q3v2.shape[1]} cols")
 
-# ── Advanced metric split (PER, WS, VORP, BPM) ──────────────────────────────
+# Advanced metric split (PER, WS, VORP, BPM)
 
 ADV_KEEP = ["PER", "TS%", "USG%", "WS", "WS/48", "VORP", "BPM", "OBPM", "DBPM"]
 reg_a = _slim(reg_adv[reg_adv["team_retcon"] != "TOT"],
@@ -206,14 +204,12 @@ adv_split = reg_a_one.merge(pof_a_one, on=["Player", "season_start"],
 adv_split["team"] = adv_split["team_retcon_r"].fillna(adv_split.get("team_retcon_p"))
 adv_split = adv_split.drop(columns=[c for c in ["team_retcon_r", "team_retcon_p"] if c in adv_split.columns])
 adv_split.to_csv(PROC / "q3_advanced_split.csv", index=False)
-print(f"  ✓ q3_advanced_split.csv          {len(adv_split):>7,} rows × {adv_split.shape[1]} cols")
+print(f"  q3_advanced_split.csv          {len(adv_split):>7,} rows × {adv_split.shape[1]} cols")
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# B.  SALARY DATA — player salaries + team payrolls
-# ═════════════════════════════════════════════════════════════════════════════
+# B.  SALARY DATA - player salaries + team payrolls
 
-print("\n── B. Salary data (for Q2 chemistry) ───────────────────")
+print("\nB. Salary data (for Q2 chemistry)")
 
 SAL_DIR = RAW / "salaries"
 
@@ -235,7 +231,7 @@ sal = sal.rename(columns={
 sal["salary"]           = _money_to_int(sal["salary"])
 sal["salary_real_2023"] = _money_to_int(sal["salary_real_2023"])
 sal.to_csv(PROC / "player_salaries.csv", index=False)
-print(f"  ✓ player_salaries.csv            {len(sal):>7,} rows × {sal.shape[1]} cols")
+print(f"  player_salaries.csv            {len(sal):>7,} rows × {sal.shape[1]} cols")
 
 pay = pd.read_csv(SAL_DIR / "NBA Payroll(1990-2023).csv")
 pay = pay.drop(columns=[c for c in pay.columns if c.startswith("Unnamed")])
@@ -248,19 +244,17 @@ pay = pay.rename(columns={
 pay["payroll"]           = _money_to_int(pay["payroll"])
 pay["payroll_real_2023"] = _money_to_int(pay["payroll_real_2023"])
 pay.to_csv(PROC / "team_payroll.csv", index=False)
-print(f"  ✓ team_payroll.csv               {len(pay):>7,} rows × {pay.shape[1]} cols")
+print(f"  team_payroll.csv               {len(pay):>7,} rows × {pay.shape[1]} cols")
 
 
-# ═════════════════════════════════════════════════════════════════════════════
 # C.  EXTRACT FROM EXISTING SQLITE (no download needed)
-# ═════════════════════════════════════════════════════════════════════════════
 
-print("\n── C. Mining unused SQLite tables ──────────────────────")
+print("\nC. Mining unused SQLite tables")
 
 DB = next((RAW / "basketball").glob("*.sqlite"))
 con = sqlite3.connect(str(DB))
 
-# ── C1. player_inactive_log — injury / rest proxy for Q1 ────────────────────
+# C1. player_inactive_log - injury / rest proxy for Q1
 inactive = pd.read_sql("""
     SELECT
       i.game_id,
@@ -279,7 +273,7 @@ inactive = pd.read_sql("""
 """, con)
 inactive["game_date"] = pd.to_datetime(inactive["game_date"], errors="coerce")
 inactive.to_csv(PROC / "player_inactive_log.csv", index=False)
-print(f"  ✓ player_inactive_log.csv        {len(inactive):>7,} rows × {inactive.shape[1]} cols")
+print(f"  player_inactive_log.csv        {len(inactive):>7,} rows × {inactive.shape[1]} cols")
 
 # Also: a per-player-season summary of games missed (handy aggregate)
 miss_summary = (
@@ -289,9 +283,9 @@ miss_summary = (
             .reset_index(name="games_inactive")
 )
 miss_summary.to_csv(PROC / "player_games_missed_by_season.csv", index=False)
-print(f"  ✓ player_games_missed_by_season.csv {len(miss_summary):>7,} rows")
+print(f"  player_games_missed_by_season.csv {len(miss_summary):>7,} rows")
 
-# ── C2. game_context — national-TV flag + game-flow stats for Q1 ───────────
+# C2. game_context - national-TV flag + game-flow stats for Q1
 gs = pd.read_sql("""
     SELECT
       g.game_id,
@@ -309,9 +303,9 @@ gs = pd.read_sql("""
 gs["game_date"] = pd.to_datetime(gs["game_date"], errors="coerce")
 gs["is_national_tv"] = gs["natl_tv"].notna().astype("int8")
 gs.to_csv(PROC / "game_context.csv", index=False)
-print(f"  ✓ game_context.csv               {len(gs):>7,} rows × {gs.shape[1]} cols")
+print(f"  game_context.csv               {len(gs):>7,} rows × {gs.shape[1]} cols")
 
-# ── C3. player_combine — physical attributes for Q2 ────────────────────────
+# C3. player_combine - physical attributes for Q2
 combine_cols = [
     "season", "player_id", "player_name", "position",
     "height_wo_shoes", "height_w_shoes", "weight", "wingspan",
@@ -326,9 +320,9 @@ for c in combine.columns:
     if c not in {"season", "player_id", "player_name", "position"}:
         combine[c] = pd.to_numeric(combine[c], errors="coerce")
 combine.to_csv(PROC / "player_combine.csv", index=False)
-print(f"  ✓ player_combine.csv             {len(combine):>7,} rows × {combine.shape[1]} cols")
+print(f"  player_combine.csv             {len(combine):>7,} rows × {combine.shape[1]} cols")
 
-# ── C4. player_bio_enhanced — country, greatest-75 flag, school ────────────
+# C4. player_bio_enhanced - country, greatest-75 flag, school
 bio = pd.read_sql("""
     SELECT
       person_id           AS player_id,
@@ -352,33 +346,26 @@ for c in ("season_exp", "from_year", "to_year",
           "draft_year", "draft_round", "draft_number"):
     bio[c] = pd.to_numeric(bio[c], errors="coerce")
 bio.to_csv(PROC / "player_bio_enhanced.csv", index=False)
-print(f"  ✓ player_bio_enhanced.csv        {len(bio):>7,} rows × {bio.shape[1]} cols")
+print(f"  player_bio_enhanced.csv        {len(bio):>7,} rows × {bio.shape[1]} cols")
 
 con.close()
 
 
-# ═════════════════════════════════════════════════════════════════════════════
 # Summary
-# ═════════════════════════════════════════════════════════════════════════════
 
-print("""
-╔══════════════════════════════════════════════════════════════════════╗
-║  Supplemental data pipeline complete!                                ║
-║                                                                      ║
-║  data/processed/                                                     ║
-║  ── Q3 fix ──                                                        ║
-║  ├── q3_player_split_v2.csv      REAL reg-vs-playoff (1995-2023)     ║
-║  ├── q3_advanced_split.csv       PER/WS/VORP reg vs playoff          ║
-║                                                                      ║
-║  ── for Q1 ──                                                        ║
-║  ├── player_inactive_log.csv     Who sat out each game               ║
-║  ├── player_games_missed_by_season.csv   season-level injury count   ║
-║  ├── game_context.csv            National TV + paint/fastbreak pts   ║
-║                                                                      ║
-║  ── for Q2 ──                                                        ║
-║  ├── player_salaries.csv         Individual salaries 1990-2023       ║
-║  ├── team_payroll.csv            Team payrolls 1990-2023             ║
-║  ├── player_combine.csv          Wingspan / vertical / sprint        ║
-║  └── player_bio_enhanced.csv     Country, greatest-75, school        ║
-╚══════════════════════════════════════════════════════════════════════╝
-""")
+print(
+    "Supplemental data pipeline complete.\n\n"
+    "data/processed/\n"
+    "  for Q3:\n"
+    "    q3_player_split_v2.csv      reg-vs-playoff statistics 1995-2023\n"
+    "    q3_advanced_split.csv       PER/WS/VORP reg vs playoff\n\n"
+    "  for Q1:\n"
+    "    player_inactive_log.csv     who sat out each game\n"
+    "    player_games_missed_by_season.csv   season-level injury count\n"
+    "    game_context.csv            national TV + paint/fastbreak pts\n\n"
+    "  for Q2:\n"
+    "    player_salaries.csv         individual salaries 1990-2023\n"
+    "    team_payroll.csv            team payrolls 1990-2023\n"
+    "    player_combine.csv          wingspan / vertical / sprint\n"
+    "    player_bio_enhanced.csv     country, greatest-75, school"
+)

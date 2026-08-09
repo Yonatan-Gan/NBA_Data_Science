@@ -1,10 +1,8 @@
 """
-models.py
-=========
 Every model wraps sklearn/xgb/lgbm/catboost in a consistent interface:
-  fit(X_train, y_train) → self
-  predict(X_test)       → np.ndarray
-  name                  → str label for plots
+  fit(X_train, y_train) -> self
+  predict(X_test)       -> np.ndarray
+  name                  -> str label for plots
 
 This makes experiments.py trivial: loop over MODEL_REGISTRY, call fit/predict.
 """
@@ -97,9 +95,7 @@ class _BaseModel:
         return {}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 #  Concrete models
-# ─────────────────────────────────────────────────────────────────────────────
 
 class NaiveBaselineModel(_BaseModel):
     """Predict the player's season-to-date average. No ML, just a reference point."""
@@ -262,7 +258,7 @@ class CatBoostModel(_BaseModel):
         )
 
 
-# ── Registry: all models available for experiments ───────────────────────────
+# Registry: all models available for experiments
 def get_model_registry() -> dict[str, _BaseModel]:
     """
     Return all available models.  Models are instantiated lazily here

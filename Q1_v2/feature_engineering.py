@@ -1,15 +1,13 @@
 """
-feature_engineering.py
-=======================
 Builds all feature groups from clean game logs.
 Each group is a standalone method so it can be toggled for ablation studies.
 
 Feature groups:
-  1. player_form       — rolling stats, EWMA, streaks, consistency
-  2. schedule          — rest days, B2B, 3-in-4, home/away streaks
-  3. opponent          — rolling opp defensive stats
-  4. team_context      — rolling team offensive/defensive context
-  5. career            — age, experience, career averages
+  1. player_form       - rolling stats, EWMA, streaks, consistency
+  2. schedule          - rest days, B2B, 3-in-4, home/away streaks
+  3. opponent          - rolling opp defensive stats
+  4. team_context      - rolling team offensive/defensive context
+  5. career            - age, experience, career averages
 
 All rolling windows are SHIFTED by 1 to prevent data leakage.
 """
@@ -54,9 +52,7 @@ class FeatureEngineer:
         self.career_stats = career_stats
         self._built: set[str] = set()
 
-    # ═════════════════════════════════════════════════════════════════════════
     #  GROUP 1: PLAYER FORM
-    # ═════════════════════════════════════════════════════════════════════════
 
     def build_player_form(self) -> "FeatureEngineer":
         """
@@ -84,7 +80,7 @@ class FeatureEngineer:
                 lambda x: x.shift(1).ewm(span=5, adjust=False).mean()
             )
 
-        # ── USG% ──────────────────────────────────────────────────────────────
+        # USG%
         # Usage rate is the % of team plays used by the player while on floor.
         # If a 'USG_PCT' column exists use it; otherwise approximate from FGA.
         usg_col = "USG_PCT" if "USG_PCT" in df.columns else None
@@ -92,7 +88,7 @@ class FeatureEngineer:
             grp = df.groupby(pid)[usg_col]
             df["USG_roll3"] = grp.transform(lambda x: _shift_roll(x, 3, "mean"))
 
-        # ── Season-to-date average (expanding window, shifted) ─────────────────
+        # Season-to-date average (expanding window, shifted)
         df["season_avg_pts"] = (
             df.groupby([pid, "SEASON"])["PTS"]
               .transform(lambda x: x.expanding().mean().shift(1))
@@ -106,11 +102,11 @@ class FeatureEngineer:
             df.groupby(pid)["MIN"].transform(lambda x: x.expanding().mean().shift(1))
         )
 
-        # ── Consistency score: inverse of pts volatility ───────────────────────
+        # Consistency score: inverse of pts volatility
         df["pts_volatility"]    = df.groupby(pid)["PTS"].transform(lambda x: _shift_roll(x, 10, "std"))
         df["consistency_score"] = 1 / (df["pts_volatility"] + 1)   # avoid div/0
 
-        # ── Recent trend: slope of last 5 games ───────────────────────────────
+        # Recent trend: slope of last 5 games
         def _trend(x: pd.Series) -> pd.Series:
             """Slope of a linear fit over the last 5 games (shifted)."""
             s = x.shift(1)
@@ -123,27 +119,25 @@ class FeatureEngineer:
 
         df["PTS_trend5"] = df.groupby(pid)["PTS"].transform(_trend)
 
-        # ── Hot / cold streak ──────────────────────────────────────────────────
+        # Hot / cold streak
         # Hot if last 3-game avg > (season avg + 3 pts), cold if <(season avg - 3)
         df["pts_vs_season_avg"] = df["PTS_roll3"] - df["season_avg_pts"]
         df["hot_streak"]  = (df["pts_vs_season_avg"] >  3).astype(int)
         df["cold_streak"] = (df["pts_vs_season_avg"] < -3).astype(int)
 
         self._built.add("player_form")
-        logger.info("  ✓ player_form features built")
+        logger.info("  player_form features built")
         self.df = df
         return self
 
-    # ═════════════════════════════════════════════════════════════════════════
     #  GROUP 2: SCHEDULE CONTEXT
-    # ═════════════════════════════════════════════════════════════════════════
 
     def build_schedule(self) -> "FeatureEngineer":
         """Rest days, back-to-back, 3-in-4, home/away streaks."""
         df  = self.df
         pid = "PLAYER_ID"
 
-        # ── Rest days ──────────────────────────────────────────────────────────
+        # Rest days
         df["rest_days"] = (
             df.groupby(pid)["GAME_DATE"]
               .diff().dt.days
@@ -151,10 +145,10 @@ class FeatureEngineer:
               .clip(upper=7)
         )
 
-        # ── Back-to-back ───────────────────────────────────────────────────────
+        # Back-to-back
         df["is_back_to_back"] = (df["rest_days"] == 1).astype(int)
 
-        # ── 3 games in 4 nights ────────────────────────────────────────────────
+        # 3 games in 4 nights
         def _three_in_four(dates: pd.Series) -> pd.Series:
             out = pd.Series(0, index=dates.index)
             dates_arr = dates.values
@@ -166,7 +160,7 @@ class FeatureEngineer:
 
         df["is_3_in_4"] = df.groupby(pid)["GAME_DATE"].transform(_three_in_four)
 
-        # ── Games in last 7 days ───────────────────────────────────────────────
+        # Games in last 7 days
         def _games_in_7(dates: pd.Series) -> pd.Series:
             out = pd.Series(0, index=dates.index)
             for i in range(1, len(dates)):
@@ -176,7 +170,7 @@ class FeatureEngineer:
 
         df["games_in_last_7"] = df.groupby(pid)["GAME_DATE"].transform(_games_in_7)
 
-        # ── Home / away streaks ────────────────────────────────────────────────
+        # Home / away streaks
         if "is_home" in df.columns:
             def _streak(series: pd.Series) -> pd.Series:
                 out = pd.Series(0, index=series.index)
@@ -195,30 +189,28 @@ class FeatureEngineer:
             )
 
         self._built.add("schedule")
-        logger.info("  ✓ schedule features built")
+        logger.info("  schedule features built")
         self.df = df
         return self
 
-    # ═════════════════════════════════════════════════════════════════════════
     #  GROUP 3: OPPONENT CONTEXT
-    # ═════════════════════════════════════════════════════════════════════════
 
     def build_opponent(self) -> "FeatureEngineer":
         """
         Rolling opponent defensive quality derived from what TeamGameLogs actually contains.
 
         TeamGameLogs has per-game box scores (PTS, FGM, FGA, FG3M, FG3A, OREB, DREB, etc.)
-        but NOT DEF_RATING or PACE — those are season-aggregate endpoints.
+        but NOT DEF_RATING or PACE - those are season-aggregate endpoints.
 
         So we compute defensive proxies from what IS available:
           - opp_pts_allowed_roll5:  rolling pts the opponent scored in their own games
-                                    → reflects offensive quality, NOT defensive
-          - opp_eFG_roll5:          opponent's own shooting efficiency → proxy for
+                                    -> reflects offensive quality, NOT defensive
+          - opp_eFG_roll5:          opponent's own shooting efficiency -> proxy for
                                     how good they are offensively (inverse = how hard
                                     they are to defend against)
           - opp_win_pct_roll5:      rolling win %, overall team quality signal
           - opp_pts_conceded_roll5: rolling avg pts scored against the opponent team,
-                                    computed from the MATCHUP column — this IS a real
+                                    computed from the MATCHUP column - this IS a real
                                     defensive quality proxy
 
         The MATCHUP approach (opp_pts_conceded):
@@ -233,7 +225,7 @@ class FeatureEngineer:
             (c for c in ["OPP_TEAM_ID", "opp_team_id"] if c in df.columns), None
         )
 
-        # ── Compute opponent features from team game logs ─────────────────────
+        # Compute opponent features from team game logs
         if opp_tid_col is not None and tl is not None and not tl.empty:
             tl = tl.copy()
             if "GAME_DATE" in tl.columns:
@@ -251,12 +243,12 @@ class FeatureEngineer:
             if tid_col and pts_col and "GAME_DATE" in tl.columns:
                 tl = tl.sort_values([tid_col, "GAME_DATE"]).reset_index(drop=True)
 
-                # ── Opponent offensive quality (rolling avg pts scored) ────────
+                # Opponent offensive quality (rolling avg pts scored)
                 tl["_opp_pts_roll5"] = tl.groupby(tid_col)[pts_col].transform(
                     lambda x: _shift_roll(x, 5, "mean")
                 )
 
-                # ── Opponent shooting efficiency (eFG%) ───────────────────────
+                # Opponent shooting efficiency (eFG%)
                 if fgm_col and fga_col and fg3m_col:
                     tl["_opp_eFG"] = (
                         (tl[fgm_col] + 0.5 * tl[fg3m_col]) /
@@ -266,20 +258,20 @@ class FeatureEngineer:
                         lambda x: _shift_roll(x, 5, "mean")
                     )
 
-                # ── Opponent win % (overall strength) ─────────────────────────
+                # Opponent win % (overall strength)
                 if wl_col:
                     tl["_win_flag"] = (tl[wl_col] == "W").astype(float)
                     tl["_opp_win_pct_roll5"] = tl.groupby(tid_col)["_win_flag"].transform(
                         lambda x: _shift_roll(x, 5, "mean")
                     )
 
-                # ── Opponent net rating proxy (plus/minus rolling avg) ─────────
+                # Opponent net rating proxy (plus/minus rolling avg)
                 if pm_col:
                     tl["_opp_net_roll5"] = tl.groupby(tid_col)[pm_col].transform(
                         lambda x: _shift_roll(x, 5, "mean")
                     )
 
-                # ── Pts CONCEDED by opponent: best defensive proxy available ──
+                # Pts CONCEDED by opponent: best defensive proxy available
                 # For each game, the opponent team conceded the pts scored by
                 # the player's team.  We compute this as:
                 #   pts_conceded_by_opp = pts scored by player_team in that game
@@ -293,7 +285,7 @@ class FeatureEngineer:
                         lambda x: _shift_roll(x, 5, "mean")
                     )
 
-                # ── Build lookup: one row per (OPP_TEAM_ID, GAME_DATE) ─────────
+                # Build lookup: one row per (OPP_TEAM_ID, GAME_DATE)
                 lookup_cols = [tid_col, "GAME_DATE", "_opp_pts_roll5"]
                 for c in ["_opp_eFG_roll5","_opp_win_pct_roll5",
                            "_opp_net_roll5","_opp_pts_conceded_roll5"]:
@@ -326,26 +318,26 @@ class FeatureEngineer:
                     df["opp_def_rating_roll5"] = df["opp_pts_allowed_roll5"].fillna(112.0)
                     n_filled = df["opp_def_rating_roll5"].notna().sum()
                     logger.info(
-                        f"  ✓ Opponent defensive proxy (pts_conceded) from team logs: "
+                        f"  Opponent defensive proxy (pts_conceded) from team logs: "
                         f"{n_filled:,}/{n_before:,} rows filled ({n_filled/n_before*100:.1f}%)"
                     )
                 else:
                     df["opp_def_rating_roll5"] = 112.0
-                    logger.warning("  Could not compute opp_pts_conceded — falling back to 112.0")
+                    logger.warning("  Could not compute opp_pts_conceded - falling back to 112.0")
 
             else:
                 df["opp_def_rating_roll5"] = 112.0
-                logger.warning("  Team logs missing TEAM_ID or PTS — using 112.0 fallback")
+                logger.warning("  Team logs missing TEAM_ID or PTS - using 112.0 fallback")
 
         else:
             df["opp_def_rating_roll5"] = 112.0
             logger.warning(
-                "  OPP_DEF_RATING not available from any source — "
+                "  OPP_DEF_RATING not available from any source - "
                 "using league average 112.0. "
                 "Ensure OPP_TEAM_ID exists in player logs and team_gamelogs are loaded."
             )
 
-        # ── Fill any remaining columns with neutral constants ──────────────────
+        # Fill any remaining columns with neutral constants
         defaults = {
             "opp_pace_roll5":       100.0,
             "opp_win_pct_roll5":    0.50,
@@ -359,11 +351,11 @@ class FeatureEngineer:
                 df[col] = val
 
         self._built.add("opponent")
-        logger.info("  ✓ opponent features built")
+        logger.info("  opponent features built")
         self.df = df
         return self
 
-        # ── Path 1: compute from team game logs (best) ────────────────────────
+        # Path 1: compute from team game logs (best)
         if opp_tid_col is not None and tl is not None and not tl.empty:
             tl = tl.copy()
             if "GAME_DATE" in tl.columns:
@@ -379,7 +371,7 @@ class FeatureEngineer:
                 tl = tl.dropna(subset=[tid_col, "GAME_DATE", def_col])
                 tl = tl.sort_values([tid_col, "GAME_DATE"]).reset_index(drop=True)
 
-                # Rolling defensive rating for each team (shifted — no leakage)
+                # Rolling defensive rating for each team (shifted - no leakage)
                 tl["_def_roll5"] = tl.groupby(tid_col)[def_col].transform(
                     lambda x: _shift_roll(x, 5, "mean")
                 )
@@ -426,7 +418,7 @@ class FeatureEngineer:
                 n_filled = df["opp_def_rating_roll5"].notna().sum()
                 n_total  = len(df)
                 logger.info(
-                    f"  ✓ Opponent DEF_RATING from team logs: "
+                    f"  Opponent DEF_RATING from team logs: "
                     f"{n_filled:,}/{n_total:,} rows filled ({n_filled/n_total*100:.1f}%)"
                 )
                 # Fill any gaps (early-season rows with no prior games) with league avg
@@ -434,24 +426,24 @@ class FeatureEngineer:
 
             else:
                 logger.warning(
-                    "  Team logs lack TEAM_ID or DEF_RATING column — "
+                    "  Team logs lack TEAM_ID or DEF_RATING column - "
                     "falling through to static opponent context"
                 )
                 df["opp_def_rating_roll5"] = 112.0
 
-        # ── Path 2: static column already in player log ───────────────────────
+        # Path 2: static column already in player log
         elif any(c in df.columns for c in ["OPP_DEF_RATING", "opp_def_rating"]):
             opp_col = next(c for c in ["OPP_DEF_RATING","opp_def_rating"] if c in df.columns)
             df["opp_def_rating_roll5"] = df.groupby("PLAYER_ID")[opp_col].transform(
                 lambda x: _shift_roll(x, 5, "mean")
             )
-            logger.info("  ✓ Opponent DEF_RATING from static player-log column")
+            logger.info("  Opponent DEF_RATING from static player-log column")
 
-        # ── Path 3: league average fallback ───────────────────────────────────
+        # Path 3: league average fallback
         else:
             df["opp_def_rating_roll5"] = 112.0
             logger.warning(
-                "  OPP_DEF_RATING not available from any source — "
+                "  OPP_DEF_RATING not available from any source - "
                 "using league average 112.0. "
                 "Ensure team_gamelogs are loaded and contain DEF_RATING."
             )
@@ -466,13 +458,11 @@ class FeatureEngineer:
             df["opp_eFG_allowed_roll5"] = (df["opp_pts_allowed_roll5"] / 220).clip(0.4, 0.65)
 
         self._built.add("opponent")
-        logger.info("  ✓ opponent features built")
+        logger.info("  opponent features built")
         self.df = df
         return self
 
-    # ═════════════════════════════════════════════════════════════════════════
     #  GROUP 4: TEAM CONTEXT
-    # ═════════════════════════════════════════════════════════════════════════
 
     def build_team_context(self) -> "FeatureEngineer":
         """
@@ -488,7 +478,7 @@ class FeatureEngineer:
             df["team_net_rating_roll5"] = 0.0
             df["team_pace_roll5"]       = 100.0
             df["team_ast_pct_roll5"]    = 0.60
-            logger.warning("  Team game logs not available — using neutral team context")
+            logger.warning("  Team game logs not available - using neutral team context")
             self._built.add("team_context")
             self.df = df
             return self
@@ -505,7 +495,7 @@ class FeatureEngineer:
         tid_col  = next((c for c in ["TEAM_ID","team_id"] if c in tl.columns), None)
 
         if not tid_col:
-            logger.warning("  No TEAM_ID in team logs — skipping team context")
+            logger.warning("  No TEAM_ID in team logs - skipping team context")
             df["team_off_rating_roll5"] = 112.0
             df["team_def_rating_roll5"] = 112.0
             df["team_net_rating_roll5"] = 0.0
@@ -564,13 +554,11 @@ class FeatureEngineer:
                 df[col] = val
 
         self._built.add("team_context")
-        logger.info("  ✓ team_context features built")
+        logger.info("  team_context features built")
         self.df = df
         return self
 
-    # ═════════════════════════════════════════════════════════════════════════
     #  GROUP 5: CAREER CONTEXT
-    # ═════════════════════════════════════════════════════════════════════════
 
     def build_career(self) -> "FeatureEngineer":
         """
@@ -580,7 +568,7 @@ class FeatureEngineer:
         df = self.df
         pid = "PLAYER_ID"
 
-        # ── Age from BIRTHDATE ─────────────────────────────────────────────────
+        # Age from BIRTHDATE
         if self.player_bio is not None and not self.player_bio.empty:
             bio = self.player_bio.copy()
 
@@ -614,7 +602,7 @@ class FeatureEngineer:
         if "player_age" not in df.columns:
             df["player_age"] = np.nan
 
-        # ── Experience (seasons played before this game) ─────────────────────
+        # Experience (seasons played before this game)
         if "SEASON" in df.columns:
             seasons_sorted = sorted(df["SEASON"].dropna().unique())
             season_rank    = {s: i for i, s in enumerate(seasons_sorted)}
@@ -622,7 +610,7 @@ class FeatureEngineer:
         else:
             df["experience_years"] = 0
 
-        # ── Career averages from career_stats.csv ───────────────────────────
+        # Career averages from career_stats.csv
         if self.career_stats is not None and not self.career_stats.empty:
             cs = self.career_stats.copy()
             cs_pid = next((c for c in ["PLAYER_ID","player_id"] if c in cs.columns), None)
@@ -646,19 +634,17 @@ class FeatureEngineer:
                 df[col] = np.nan
 
         self._built.add("career")
-        logger.info("  ✓ career features built")
+        logger.info("  career features built")
         self.df = df
         return self
 
-    # ═════════════════════════════════════════════════════════════════════════
     #  MAIN ENTRY POINT
-    # ═════════════════════════════════════════════════════════════════════════
 
     def build(self, groups: list[str] | None = None) -> pd.DataFrame:
         """
         Build all (or a subset of) feature groups.
-        groups=None → build everything.
-        groups=["player_form","schedule"] → build only those two.
+        groups=None -> build everything.
+        groups=["player_form","schedule"] -> build only those two.
         """
         all_groups = list(FEATURE_GROUPS.keys())
         groups_to_build = groups if groups else all_groups

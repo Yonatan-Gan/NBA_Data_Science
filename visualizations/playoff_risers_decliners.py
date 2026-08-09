@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Dumbbell plot of the top 10 playoff risers and top 10 playoff decliners.
-Each row shows a player's regular-season scoring average → playoff scoring
+Each row shows a player's regular-season scoring average -> playoff scoring
 average, with an arrow showing the direction and magnitude of the change.
 
 Output: figures/playoff_risers_decliners.png
@@ -15,7 +15,7 @@ from pathlib import Path
 
 FIG_DIR = Path("figures"); FIG_DIR.mkdir(exist_ok=True)
 
-# ── Load & filter for meaningful sample sizes ──────────────────────────────
+# Load & filter for meaningful sample sizes
 
 df = pd.read_csv("data/processed/q3_player_split_v2.csv")
 df = df.dropna(subset=["REG_PTS", "POF_PTS"])
@@ -33,7 +33,7 @@ for d in (risers, decliners):
     d["season_label"] = d["season_start"].apply(_season_label)
     d["row_label"]    = d["Player"] + "   " + d["season_label"]
 
-# ── Style ─────────────────────────────────────────────────────────────────────
+# Style
 plt.rcParams.update({
     "font.family":       "DejaVu Sans",
     "axes.spines.top":   False,
@@ -126,13 +126,13 @@ ax.set_ylim(-1, max(y_risers) + 1.5)
 fig.suptitle("Playoff Performance Shift",
              fontsize=18, fontweight="bold", y=0.97)
 fig.text(0.5, 0.935,
-         "Top 10 risers and top 10 decliners — change in scoring from regular season to playoffs",
+         "Top 10 risers and top 10 decliners - change in scoring from regular season to playoffs",
          ha="center", fontsize=11, color="#555")
 fig.text(0.5, 0.915,
          "Filtered to ≥ 50 regular-season games, ≥ 10 playoff games, ≥ 15.0 regular-season PPG  ·  Seasons 1995-2023",
          ha="center", fontsize=9, color="#888", style="italic")
 
-# Legend — just the grey dot for regular-season PPG
+# Legend - just the grey dot for regular-season PPG
 legend_handles = [
     plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=REG_COLOR,
                markeredgecolor=REG_COLOR, markersize=11, linestyle="None",
@@ -147,4 +147,4 @@ plt.subplots_adjust(left=0.20, right=0.96, top=0.89, bottom=0.10)
 fig.savefig(FIG_DIR / "playoff_risers_decliners.png",
             dpi=150, bbox_inches="tight")
 plt.close(fig)
-print(f"✓  saved figures/playoff_risers_decliners.png")
+print("saved figures/playoff_risers_decliners.png")

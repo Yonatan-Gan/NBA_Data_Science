@@ -1,13 +1,11 @@
 """
-experiments.py
-==============
 Runs two types of experiments:
 
   1. Feature ablation: fix model (XGBoost), vary feature groups
-     → quantifies marginal contribution of each context layer
+     -> quantifies marginal contribution of each context layer
 
   2. Model comparison: fix features (all), vary models
-     → identifies the best model for this task
+     -> identifies the best model for this task
 
 Both use a strict chronological train/test split.
 """
@@ -53,7 +51,7 @@ def chronological_split(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Sort by GAME_DATE and split at train_ratio.
-    Chronological split is critical for time-series data — a random split
+    Chronological split is critical for time-series data - a random split
     would leak future information into training.
     """
     df = df.sort_values("GAME_DATE").reset_index(drop=True)
@@ -139,11 +137,11 @@ class ExperimentRunner:
         self.ablation_results: list[ExperimentResult] = []
         self.model_results:    list[ExperimentResult] = []
 
-    # ── Ablation study ────────────────────────────────────────────────────────
+    # Ablation study
 
     def run_ablation(self) -> list[ExperimentResult]:
         """
-        Run 6 experiments (EXP1–EXP6) using XGBoost.
+        Run 6 experiments (EXP1-EXP6) using XGBoost.
         Each experiment adds one feature group to the previous.
         Quantifies: what does each context layer contribute?
         """
@@ -155,7 +153,7 @@ class ExperimentRunner:
         for exp_name, groups in EXPERIMENTS.items():
             features = _get_features(self.df_train, groups)
             if not features:
-                logger.warning(f"  {exp_name}: no features found — skipping")
+                logger.warning(f"  {exp_name}: no features found - skipping")
                 continue
             model = XGBoostModel()  # fresh model for each experiment
             res   = _run_one(
@@ -167,7 +165,7 @@ class ExperimentRunner:
         self.ablation_results = results
         return results
 
-    # ── Model comparison ──────────────────────────────────────────────────────
+    # Model comparison
 
     def run_model_comparison(
         self,
@@ -203,7 +201,7 @@ class ExperimentRunner:
         self.model_results = results
         return results
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    # Summary
 
     def summary_df(self, results: list[ExperimentResult]) -> pd.DataFrame:
         """Convert results list to a tidy DataFrame for reporting."""

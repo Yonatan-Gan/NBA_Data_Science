@@ -2,11 +2,11 @@
 """
 Two simple sanity-check visualizations.
 
-  Fig 1 – Histogram of player ages
-          Confirms ages are realistic (17–42 range, peak ~26)
+  Fig 1 - Histogram of player ages
+          Confirms ages are realistic (17-42 range, peak ~26)
           Shows the small number of bad / outlier rows
 
-  Fig 2 – Distribution of points scored per game, across every season
+  Fig 2 - Distribution of points scored per game, across every season
           Confirms no negative scores and no impossible 100+ values
 """
 
@@ -22,7 +22,7 @@ from pathlib import Path
 FIG_DIR = Path("figures")
 FIG_DIR.mkdir(exist_ok=True)
 
-# ── shared style ──────────────────────────────────────────────────────────────
+# shared style
 plt.rcParams.update({
     "font.family":       "DejaVu Sans",
     "axes.spines.top":   False,
@@ -39,10 +39,8 @@ plt.rcParams.update({
 })
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# FIG 1 — Player Age Histogram
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 1: Player Age …")
+# FIG 1 - Player Age Histogram
+print("Building Fig 1: Player Age ...")
 
 df_age = pd.read_csv("data/processed/q2_player_attributes.csv",
                      usecols=["age_computed"])
@@ -61,12 +59,12 @@ all_max = min(df_age["age_computed"].max(), 80)
 
 fig, ax = plt.subplots(figsize=(13, 6))
 
-# Valid ages — blue bars
+# Valid ages - blue bars
 bins_valid = np.arange(VALID_MIN, VALID_MAX + 2, 1)
 ax.hist(valid, bins=bins_valid, color="#2979FF", edgecolor="white",
         linewidth=0.6, zorder=2)
 
-# Outlier ages — 3-year buckets so each bar is tall enough to see, vivid
+# Outlier ages - 3-year buckets so each bar is tall enough to see, vivid
 # red with a thin dark-red border (no white halo).
 RED      = "#dc143c"
 RED_EDGE = "#7d0a1f"
@@ -92,7 +90,7 @@ ax.text(mean_age + 0.3, ax.get_ylim()[1] * 0.88,
         f"Mean = {mean_age:.1f}", color="#333333", fontsize=10, fontweight="bold")
 
 ax.set_xlabel("Player Age  (years)")
-# Main y-axis label — small parenthetical sub-line
+# Main y-axis label - small parenthetical sub-line
 ax.set_ylabel("How many records", labelpad=22)
 ax.annotate(
     "(one row = one player in one season)",
@@ -120,13 +118,11 @@ ax.legend(handles=handles, loc="upper left", frameon=True, framealpha=0.95,
 fig.tight_layout()
 fig.savefig(FIG_DIR / "fig1_age_sanity.png", bbox_inches="tight")
 plt.close(fig)
-print("  ✓  figures/fig1_age_sanity.png")
+print("  figures/fig1_age_sanity.png")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# FIG 2 — Points Per Game by Season (box plot)
-# ══════════════════════════════════════════════════════════════════════════════
-print("Building Fig 2: Points per Season …")
+# FIG 2 - Points Per Game by Season (box plot)
+print("Building Fig 2: Points per Season ...")
 
 df_pts = pd.read_csv("data/processed/q1_player_game_logs.csv",
                      usecols=["SEASON", "PTS"], low_memory=False)
@@ -144,7 +140,7 @@ ZONE_TEXT    = "#c0392b"
 
 fig, ax = plt.subplots(figsize=(14, 7))
 
-# Violin plot — width at each height = how many games had that score.
+# Violin plot - width at each height = how many games had that score.
 # No median line, no internal markers. Just the density shape itself.
 parts = ax.violinplot(
     data_by_season,
@@ -157,10 +153,10 @@ parts = ax.violinplot(
 for body in parts["bodies"]:
     body.set_facecolor(VIOLIN_FACE)
     body.set_edgecolor(VIOLIN_EDGE)
-    body.set_alpha(1.0)        # no fade — keep the tail fully colored
+    body.set_alpha(1.0)        # no fade - keep the tail fully colored
     body.set_linewidth(1.2)
 
-# Out-of-range zones — at <0 (impossible) and >100 (not observed in this data)
+# Out-of-range zones - at <0 (impossible) and >100 (not observed in this data)
 ax.axhspan(-8, 0,    color=ZONE_RED, alpha=0.75, zorder=0)
 ax.axhspan(100, 115, color=ZONE_RED, alpha=0.75, zorder=0)
 mid_x = (len(seasons) - 1) / 2
@@ -188,7 +184,7 @@ ax.set_title("Sanity Check 2: Points per Player per Game, by Season (2003-2022)"
 ax.set_ylim(-8, 115)
 ax.set_xlim(-0.7, len(seasons) - 0.3)
 
-# Simple legend — one shape, with a clear explanation of how to read it
+# Simple legend - one shape, with a clear explanation of how to read it
 from matplotlib.lines import Line2D
 legend_handles = [
     mpatches.Patch(facecolor=VIOLIN_FACE, edgecolor=VIOLIN_EDGE,
@@ -200,7 +196,7 @@ ax.legend(
     borderpad=0.8, handlelength=2.5, handleheight=2.0, handletextpad=0.8,
 )
 
-# Summary stats — top right
+# Summary stats - top right
 total_games = len(df_pts)
 ax.text(
     0.99, 0.97,
@@ -214,6 +210,6 @@ ax.text(
 fig.tight_layout()
 fig.savefig(FIG_DIR / "fig2_points_sanity.png", bbox_inches="tight")
 plt.close(fig)
-print("  ✓  figures/fig2_points_sanity.png")
+print("  figures/fig2_points_sanity.png")
 
 print("\nDone.")

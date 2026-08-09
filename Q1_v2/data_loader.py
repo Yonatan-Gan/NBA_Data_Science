@@ -1,13 +1,11 @@
 """
-data_loader.py
-==============
 Loads raw CSVs from all three sources (NBA_api, Kaggle, BRef) and returns
 clean, merged DataFrames ready for feature engineering.
 
 Design principles:
 - Every method inspects actual column names before using them
 - Graceful fallback when a file or column is missing
-- No column names are assumed — always validated against real schema
+- No column names are assumed - always validated against real schema
 """
 
 from __future__ import annotations
@@ -33,7 +31,7 @@ class NBADataLoader:
     NBA API, Kaggle, and Basketball Reference.
     """
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    # Helpers
 
     @staticmethod
     def _safe_read(path: str | Path, **kwargs) -> Optional[pd.DataFrame]:
@@ -53,7 +51,7 @@ class NBADataLoader:
                 return c
         return None
 
-    # ── NBA API game logs ─────────────────────────────────────────────────────
+    # NBA API game logs
 
     def load_player_gamelogs(self) -> pd.DataFrame:
         """
@@ -96,7 +94,7 @@ class NBADataLoader:
         pattern = str(NBA_API_DIR / "game_logs" / "teams" / "**" / "team_gamelogs_regular_season_base.csv")
         files   = glob.glob(pattern, recursive=True)
         if not files:
-            logger.warning("No team game log CSVs found — team context features will be skipped")
+            logger.warning("No team game log CSVs found - team context features will be skipped")
             return None
 
         dfs = []
@@ -114,7 +112,7 @@ class NBADataLoader:
         logger.info(f"Team game logs: {len(combined):,} rows")
         return combined
 
-    # ── NBA API season stats (for career context) ─────────────────────────────
+    # NBA API season stats (for career context)
 
     def load_player_bio(self) -> Optional[pd.DataFrame]:
         path = NBA_API_DIR / "player_profiles" / "player_bio_info.csv"
@@ -133,7 +131,7 @@ class NBADataLoader:
         logger.info(f"Career stats: {len(df):,} rows")
         return df
 
-    # ── Kaggle supplementary data ──────────────────────────────────────────────
+    # Kaggle supplementary data
 
     def load_kaggle_advanced(self) -> Optional[pd.DataFrame]:
         """
@@ -181,7 +179,7 @@ class NBADataLoader:
                 return df
         return None
 
-    # ── Basketball Reference ───────────────────────────────────────────────────
+    # Basketball Reference
 
     def load_bref_team_season(
         self,
@@ -216,7 +214,7 @@ class NBADataLoader:
         logger.info(f"BRef {stat_type}: {len(combined):,} rows from {len(dfs)} files")
         return combined
 
-    # ── Main entry point ──────────────────────────────────────────────────────
+    # Main entry point
 
     def load_all(self) -> dict[str, pd.DataFrame | None]:
         """
@@ -224,7 +222,7 @@ class NBADataLoader:
         Callers pick what they need; missing data returns None.
         """
         logger.info("=" * 60)
-        logger.info("  NBADataLoader — loading all sources")
+        logger.info("  NBADataLoader - loading all sources")
         logger.info("=" * 60)
 
         return {

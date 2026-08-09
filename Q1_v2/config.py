@@ -1,8 +1,6 @@
 """
-config.py
-=========
 Single source of truth for all paths, constants, and hyperparameters.
-Import this everywhere — never hard-code paths or magic numbers elsewhere.
+Import this everywhere, never hard-code paths or magic numbers elsewhere.
 """
 
 from __future__ import annotations
@@ -10,16 +8,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict
 
-# ── Repo root (two levels up from Q1_v2/) ────────────────────────────────────
+# Repo root (two levels up from Q1_v2/)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# ── Data paths ────────────────────────────────────────────────────────────────
+# Data paths
 DATA_ROOT     = REPO_ROOT / "data" / "processed"
 NBA_API_DIR   = DATA_ROOT / "NBA_api"
 KAGGLE_DIR    = DATA_ROOT / "Kaggle"
 BREF_DIR      = DATA_ROOT / "BRef"
 
-# ── Output paths ──────────────────────────────────────────────────────────────
+# Output paths
 Q1_DIR        = REPO_ROOT / "Q1_v2"
 FIGURES_DIR   = REPO_ROOT / "figures" / "Q1"
 RESULTS_DIR   = Q1_DIR / "results"
@@ -27,27 +25,27 @@ RESULTS_DIR   = Q1_DIR / "results"
 for _p in [FIGURES_DIR, RESULTS_DIR]:
     _p.mkdir(parents=True, exist_ok=True)
 
-# ── Reproducibility ───────────────────────────────────────────────────────────
+# Reproducibility
 RANDOM_SEED = 42
 
-# ── Seasons covered ───────────────────────────────────────────────────────────
+# Seasons covered
 SEASONS = [
     "2019-20", "2020-21", "2021-22",
     "2022-23", "2023-24", "2024-25",
 ]
 
-# ── Prediction targets ────────────────────────────────────────────────────────
+# Prediction targets
 PRIMARY_TARGET = "PTS"        # next-game points
 ALL_TARGETS    = ["PTS", "REB", "AST"]
 
-# ── Train / test split ────────────────────────────────────────────────────────
+# Train / test split
 TRAIN_RATIO   = 0.80          # chronological split
 MIN_GAMES     = 10            # minimum games played before a player enters the dataset
 
-# ── Rolling window sizes ──────────────────────────────────────────────────────
+# Rolling window sizes
 WINDOWS = [3, 5, 10]
 
-# ── Feature groups (used for ablation experiments) ───────────────────────────
+# Feature groups (used for ablation experiments)
 FEATURE_GROUPS: Dict[str, List[str]] = {
     "player_form": [
         "PTS_roll3", "PTS_roll5", "PTS_roll10",
@@ -99,7 +97,7 @@ ALL_FEATURES: List[str] = [
     f for group in FEATURE_GROUPS.values() for f in group
 ]
 
-# ── Model hyperparameters ─────────────────────────────────────────────────────
+# Model hyperparameters
 @dataclass
 class XGBConfig:
     n_estimators:      int   = 500
@@ -134,7 +132,7 @@ class RFConfig:
     min_samples_leaf: int = 5
     n_jobs:       int   = -1
 
-# ── Experiment definitions ────────────────────────────────────────────────────
+# Experiment definitions
 # Each experiment adds a feature group on top of the previous one.
 # This lets us measure the marginal value of each group.
 EXPERIMENTS: Dict[str, List[str]] = {
@@ -146,7 +144,7 @@ EXPERIMENTS: Dict[str, List[str]] = {
     "EXP6_all":              list(FEATURE_GROUPS.keys()),
 }
 
-# ── Visualization style ───────────────────────────────────────────────────────
+# Visualization style
 STYLE = {
     "blue":      "#1565C0",
     "light_blue":"#42A5F5",
