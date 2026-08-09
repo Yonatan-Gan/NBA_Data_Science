@@ -72,7 +72,7 @@ import kagglehub  # noqa: E402
 # 3. Download supplemental Kaggle datasets
 
 SUPP = {
-    "seasonal_history": "bendikfltaas/nba-history-seasonal-data-1995-2023",  # fixes Q3
+    "seasonal_history": "bendikfltaas/nba-history-seasonal-data-1995-2023",  # Regular-season and playoff history
     "salaries":         "loganlauton/nba-players-and-team-data",
 }
 
@@ -134,7 +134,7 @@ def _collapse(df, prefix):
     if df.empty:
         return df
     g_col = f"{prefix}_G"
-    # for stats that are per-game, we want a games-weighted mean
+    # Calculate games-weighted means for the remaining statistics.
     stat_cols = [c for c in df.columns if c.startswith(prefix + "_") and c != g_col]
     out = (df
            .assign(_w=df[g_col])
@@ -179,7 +179,7 @@ reg_a = _slim(reg_adv[reg_adv["team_retcon"] != "TOT"],
 pof_a = _slim(pof_adv[pof_adv["team_retcon"] != "TOT"],
               KEY + ADV_KEEP).rename(columns={c: f"POF_{c}" for c in ADV_KEEP})
 
-# Take a player's primary team for a season (max games)
+# Identify the team for which the player recorded the most games that season.
 def _primary_team(df_avg, prefix):
     g_col = f"{prefix}_G" if f"{prefix}_G" in df_avg.columns else "G"
     if g_col not in df_avg.columns:
@@ -275,7 +275,7 @@ inactive["game_date"] = pd.to_datetime(inactive["game_date"], errors="coerce")
 inactive.to_csv(PROC / "player_inactive_log.csv", index=False)
 print(f"  player_inactive_log.csv        {len(inactive):>7,} rows × {inactive.shape[1]} cols")
 
-# Also: a per-player-season summary of games missed (handy aggregate)
+# Create a per-player-season summary of inactive games.
 miss_summary = (
     inactive.dropna(subset=["season_start"])
             .groupby(["player_id", "player_name", "season_start"])

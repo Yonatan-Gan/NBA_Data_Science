@@ -1,21 +1,5 @@
 """
 NBA Age Distribution Chart
-===========================
-Reads player_profiles/player_bio_info.csv and produces a polished
-publication-style PDF bar chart of active NBA player ages.
-
-  - Bold title + italic subtitle (matching reference style)
-  - Every bar labelled with its count
-  - Red vertical line marking the average age
-  - Green annotation naming the oldest outlier (age 39+)
-  - Light blue area fill under bars
-
-Usage:
-    pip install pandas matplotlib reportlab
-    python nba_age_chart.py
-
-Output:
-    nba_age_distribution.pdf
 """
 
 import io, os, sys, warnings
@@ -212,13 +196,12 @@ ax.tick_params(axis="x", length=3, colors="#888888")
 ax.yaxis.grid(True, color="#e8e8e8", linewidth=0.9, zorder=0)
 ax.set_axisbelow(True)
 
-# Remove all spines except bottom (matching reference)
+# Remove all spines except bottom
 for spine in ["top", "right", "left"]:
     ax.spines[spine].set_visible(False)
 ax.spines["bottom"].set_color("#cccccc")
 ax.spines["bottom"].set_linewidth(0.8)
 
-# Y-axis: start at 0, add a bit of headroom
 ax.set_ylim(0, peak_count * 1.22)
 
 fig.tight_layout(pad=1.5)

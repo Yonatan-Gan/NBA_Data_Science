@@ -2,7 +2,7 @@
 """
 NBA Data Collection & Feature Engineering Pipeline
 ===================================================
-Downloads three Kaggle datasets and produces analysis-ready CSVs for:
+Downloads three Kaggle datasets and produces processed CSVs for:
 
   Q1  Player next-game performance prediction
       -> data/processed/q1_player_game_logs.csv   (game-level rows, rolling features)
@@ -377,7 +377,7 @@ q2p = season_stats.merge(
     how="left",
 )
 q2p["age_computed"] = q2p["Year"] - q2p["birth_year"]
-q2p["experience"]   = q2p.groupby("Player").cumcount() + 1  # seasons in league
+q2p["experience"]   = q2p.groupby("Player").cumcount() + 1  # Sequential retained row number for each player
 
 # Nationality
 if not player_info.empty:

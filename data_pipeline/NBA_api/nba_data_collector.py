@@ -113,7 +113,7 @@ def safe_call(fn, *args, retries: int = 4, **kwargs):
         try:
             time.sleep(DELAY)
 
-            # only pass kwargs that endpoint actually accepts
+            # Call the endpoint with the supplied positional and keyword arguments.
             return fn(*args, **kwargs)
 
         except TypeError as e:
@@ -135,7 +135,7 @@ def safe_call(fn, *args, retries: int = 4, **kwargs):
 #  1.  STATIC / REFERENCE DATA
 
 def collect_static_data():
-    log.info("━━━  [1/8] Static Reference Data  ━━━")
+    log.info("[1/8] Static Reference Data")
     base = mkdir(f"{OUTPUT_DIR}/reference")
 
     # Draft history (all years)
@@ -159,7 +159,7 @@ def collect_static_data():
 #  2.  LEAGUE-WIDE SEASON STATS  (per season, regular + playoffs)
 
 def collect_league_season_stats():
-    log.info("━━━  [2/8] League-Wide Season Stats  ━━━")
+    log.info("[2/8] League-Wide Season Stats")
 
     for season in SEASONS:
         log.info(f"  Season: {season}")
@@ -278,7 +278,7 @@ def collect_league_season_stats():
 #  3.  PLAYER GAME LOGS  (every game, every player, bulk endpoint)
 
 def collect_player_game_logs():
-    log.info("━━━  [3/8] Player Game Logs  ━━━")
+    log.info("[3/8] Player Game Logs")
 
     for season in SEASONS:
         log.info(f"  Season: {season}")
@@ -305,7 +305,7 @@ def collect_player_game_logs():
 #  4.  TEAM GAME LOGS
 
 def collect_team_game_logs():
-    log.info("━━━  [4/8] Team Game Logs  ━━━")
+    log.info("[4/8] Team Game Logs")
 
     for season in SEASONS:
         log.info(f"  Season: {season}")
@@ -350,7 +350,7 @@ def _get_all_game_ids(season: str, season_type: str) -> list:
 
 
 def collect_box_scores():
-    log.info("━━━  [5/8] Box Scores  ━━━")
+    log.info("[5/8] Box Scores")
 
     for season in SEASONS:
         for season_type in ["Regular Season", "Playoffs"]:
@@ -409,7 +409,7 @@ def collect_box_scores():
 #  6.  PLAYER PROFILES  (career stats, bio, awards - active players only)
 
 def collect_player_profiles():
-    log.info("━━━  [6/8] Player Profiles (active players)  ━━━")
+    log.info("[6/8] Player Profiles (active players)")
     base = mkdir(f"{OUTPUT_DIR}/player_profiles")
 
     active = [p for p in static_players.get_players() if p["is_active"]]
@@ -459,7 +459,7 @@ def collect_player_profiles():
 #  7.  ROSTER DATA  (who was on each team each season)
 
 def collect_roster_data():
-    log.info("━━━  [7/8] Team Rosters  ━━━")
+    log.info("[7/8] Team Rosters")
     base = mkdir(f"{OUTPUT_DIR}/rosters")
 
     all_teams = static_teams.get_teams()
@@ -500,7 +500,7 @@ def collect_roster_data():
 #  8.  PLAYOFF-SPECIFIC DATA
 
 def collect_playoff_data():
-    log.info("━━━  [8/8] Playoff Data  ━━━")
+    log.info("[8/8] Playoff Data")
     base = mkdir(f"{OUTPUT_DIR}/playoffs")
 
     # Playoff series results (who played who, outcomes)

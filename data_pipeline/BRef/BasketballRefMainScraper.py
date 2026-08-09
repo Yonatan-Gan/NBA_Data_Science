@@ -32,9 +32,7 @@ def scrape_bref_team_data(team_abbr, year, table_id):
         print(f"Error {response.status_code} for {team_abbr} {year}.")
         return None
 
-    # ==========================================
-    # THE ALIAS FIX: Catching hidden B-Ref IDs
-    # ==========================================
+    # Basketball-Reference may use alternate table IDs.
     possible_ids = [table_id]
     if table_id == 'per_game': 
         possible_ids.extend(['per_game_stats', 'per_game-team'])
@@ -43,7 +41,7 @@ def scrape_bref_team_data(team_abbr, year, table_id):
     elif table_id == 'playoffs_advanced': 
         possible_ids.extend(['playoffs_advanced_stats', 'playoffs_advanced-team'])
     elif table_id == 'salaries': 
-        possible_ids.extend(['salaries2']) # B-Ref natively uses salaries2
+        possible_ids.extend(['salaries2']) # Alternate ID used for the salaries table
     elif table_id == 'pbp': 
         possible_ids.extend(['pbp_stats', 'play_by_play'])
     elif table_id == 'advanced':
@@ -53,17 +51,17 @@ def scrape_bref_team_data(team_abbr, year, table_id):
     soup = BeautifulSoup(response.text, 'lxml')
     table = None
     
-    # Step 1: Search the normal, visible HTML DOM using all possible alias IDs
+    # Search the visible HTML for any recognized table ID.
     for pid in possible_ids:
         table = soup.find('table', {'id': pid})
         if table:
             break
             
-    # Step 2: If not found, safely parse HTML Comments
+    # If not found, search for tables embedded in HTML comments.
     if not table:
         comments = soup.find_all(string=lambda text: isinstance(text, Comment))
         for comment in comments:
-            # Check if this comment block even holds a table before parsing
+            # Parse only comments that may contain a table.
             if '<table' in comment:  
                 comment_soup = BeautifulSoup(comment, 'lxml')
                 for pid in possible_ids:
@@ -74,7 +72,7 @@ def scrape_bref_team_data(team_abbr, year, table_id):
                 break
 
     if table is None:
-        # Note: If a team actually missed the playoffs, this skip is 100% correct.
+        # A missing playoff table may indicate that the team did not participate.
         print(f"  -> Table '{table_id}' not found for {team_abbr} ({year}). (Skipped)")
         return None
         
