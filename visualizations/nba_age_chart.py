@@ -2,7 +2,8 @@
 NBA Age Distribution Chart
 """
 
-import io, os, sys, warnings
+import os, sys, warnings
+from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -12,27 +13,9 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.units import cm
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib.colors import HexColor, white
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, HRFlowable
-)
-
 # CONFIG
-DATA_DIR    = "../../../../../../year 3/Semester B/מחט בערמת דאטה/NBA_Data/nba_data"
-OUTPUT_FILE = "../../../../../../year 3/Semester B/מחט בערמת דאטה/NBA_Data/nba_age_distribution.pdf"
-
-C_DARK  = HexColor("#0d0d0d")
-C_MUTED = HexColor("#555555")
-C_RULE  = HexColor("#cccccc")
-C_BLUE  = HexColor("#1565C0")
-
-PAGE_W, PAGE_H = landscape(A4)
-MARGIN = 2.0 * cm
-CONTENT_W = PAGE_W - 2 * MARGIN
+DATA_DIR = "../../../../../../year 3/Semester B/מחט בערמת דאטה/NBA_Data/nba_data"
+FIG_DIR  = Path("figures"); FIG_DIR.mkdir(exist_ok=True)
 
 # LOAD DATA
 print("="*60)
@@ -206,35 +189,7 @@ ax.set_ylim(0, peak_count * 1.22)
 
 fig.tight_layout(pad=1.5)
 
-# RENDER TO BUFFER
-buf = io.BytesIO()
-fig.savefig(buf, format="png", dpi=200, bbox_inches="tight", facecolor="white")
-buf.seek(0)
+out_path = FIG_DIR / "nba_age_distribution.png"
+fig.savefig(out_path, dpi=200, bbox_inches="tight", facecolor="white")
 plt.close(fig)
-print("  Chart rendered")
-
-# ASSEMBLE PDF
-print("  Building PDF...")
-
-story = []
-
-# chart image - fill the content width
-chart_h_cm = CONTENT_W / cm * (7 / 15)   # preserve aspect ratio (15:7 figsize)
-story.append(RLImage(buf, width=CONTENT_W, height=chart_h_cm * cm))
-
-story.append(Spacer(1, 0.35 * cm))
-story.append(HRFlowable(width="100%", thickness=0.5,
-                         color=HexColor("#cccccc"), spaceAfter=4))
-
-doc = SimpleDocTemplate(
-    OUTPUT_FILE,
-    pagesize=landscape(A4),
-    leftMargin=MARGIN, rightMargin=MARGIN,
-    topMargin=MARGIN,  bottomMargin=MARGIN,
-    author="NBA Data Science Project",
-)
-doc.build(story)
-
-print(f"\n{'='*60}")
-print(f"  PDF saved -> {os.path.abspath(OUTPUT_FILE)}")
-print(f"{'='*60}\n")
+print(f"  saved {out_path}")
